@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% block title %}Add Friend — ChatApp{% endblock %}
+{% block extra_css %}
+<style>
+  .page-wrap {
+    max-width: 580px;
+    margin: 0 auto;
+    padding: 28px 20px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text2);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .back-link:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--sidebar-header);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 18px;
+  }
+
+  .card h3 {
+    font-size: 16px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card p {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .input-row input {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 11px 14px;
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  .input-row input:focus {
+    border-color: var(--green);
+  }
+
+  .add-btn {
+    background: var(--green);
+    color: #fff;
+    padding: 11px 20px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 500;
+    transition: opacity .2s;
+    white-space: nowrap;
+  }
+
+  .add-btn:hover {
+    opacity: .88;
+  }
+
+  .msg-box {
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    margin-top: 12px;
+  }
+
+  .msg-success {
+    background: rgba(0, 168, 132, 0.12);
+    border: 1px solid rgba(0, 168, 132, 0.3);
+    color: var(--green);
+  }
+
+  .msg-error {
+    background: rgba(241, 92, 109, 0.12);
+    border: 1px solid var(--red);
+    color: var(--red);
+  }
+
+  .invite-display {
+    background: var(--input-bg);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+
+  .invite-url {
+    font-size: 13px;
+    color: var(--green);
+    word-break: break-all;
+    margin-bottom: 10px;
+  }
+
+  .copy-btn {
+    background: var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    transition: background .15s;
+  }
+
+  .copy-btn:hover {
+    background: var(--hover);
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back</a>
+  <div class="page-title"><i class="fas fa-user-plus" style="color:var(--green);margin-right:10px"></i>Add a Friend
+  </div>
+
+  <!-- BY USERNAME / PHONE -->
+  <div class="card">
+    <h3><i class="fas fa-at" style="color:var(--green)"></i> By Username or Phone</h3>
+    <p>Enter their exact username or phone number to send a friend request.</p>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="identifier" id="identifier-hidden">
+      <div class="input-row">
+        <input type="text" id="identifier-input" name="identifier" placeholder="username or +1234567890" required>
+        <button type="submit" class="add-btn"><i class="fas fa-paper-plane"></i> Send</button>
+      </div>
+    </form>
+    {% if success %}<div class="msg-box msg-success"><i class="fas fa-check-circle"></i> {{ success }}</div>{% endif %}
+    {% if error %}<div class="msg-box msg-error"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
+  </div>
+
+  <!-- BY INVITE LINK -->
+  <div class="card">
+    <h3><i class="fas fa-link" style="color:var(--green)"></i> By Invite Link</h3>
+    <p>Paste a friend's invite link to add them directly without a request.</p>
+    <div class="input-row">
+      <input type="text" id="invite-input" placeholder="https://yourdomain.com/invite/...">
+      <button class="add-btn" onclick="goToInvite()"><i class="fas fa-arrow-right"></i> Go</button>
+    </div>
+  </div>
+
+  <!-- YOUR LINK -->
+  <div class="card">
+    <h3><i class="fas fa-share-alt" style="color:var(--green)"></i> Share Your Invite Link</h3>
+    <p>Share this link so friends can add you automatically when they click it.</p>
+    <div class="invite-display">
+      <div class="invite-url" id="my-invite">{{ invite_link }}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="copy-btn" onclick="copyLink()"><i class="fas fa-copy"></i> Copy Link</button>
+        <button class="copy-btn" onclick="shareLink()"><i class="fas fa-share"></i> Share</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function goToInvite() {
+    const val = document.getElementById('invite-input').value.trim();
+    if (!val) return;
+    if (val.startsWith('http')) window.location.href = val;
+    else window.location.href = `/invite/${val}/`;
+  }
+  function copyLink() {
+    navigator.clipboard.writeText(document.getElementById('my-invite').textContent.trim())
+      .then(() => showToast('Invite link copied!'));
+  }
+  function shareLink() {
+    const url = document.getElementById('my-invite').textContent.trim();
+    if (navigator.share) navigator.share({ title: 'Chat with me on ChatApp!', url });
+    else copyLink();
+  }
+  document.getElementById('invite-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') goToInvite();
+  });
+</script>
+{% endblock %}

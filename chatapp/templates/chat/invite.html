@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Join ChatApp{% endblock %}
+{% block extra_css %}
+<style>
+  .invite-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .invite-box {
+    background: var(--sidebar-header);
+    border-radius: 20px;
+    padding: 44px 40px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+
+  .invite-box .avatar {
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    border: 3px solid var(--green);
+  }
+
+  .invite-box h2 {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .invite-box .handle {
+    font-size: 15px;
+    color: var(--text2);
+    margin-bottom: 6px;
+  }
+
+  .invite-box .bio {
+    font-size: 14px;
+    color: var(--text2);
+    margin-bottom: 28px;
+  }
+
+  .invite-msg {
+    font-size: 16px;
+    margin-bottom: 28px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .invite-msg span {
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .action-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .action-btn {
+    display: block;
+    padding: 13px;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 500;
+    transition: opacity .2s;
+    text-decoration: none;
+  }
+
+  .action-btn:hover {
+    opacity: .88;
+    text-decoration: none;
+  }
+
+  .btn-register {
+    background: var(--green);
+    color: #fff;
+  }
+
+  .btn-login {
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .logo {
+    font-size: 48px;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="invite-wrap">
+  <div class="invite-box">
+    <div class="logo"><i class="fa-brands fa-whatsapp"></i></div>
+    <div class="avatar">
+      {% if inviter_profile.avatar %}
+      <img src="{{ inviter_profile.avatar.url }}" style="width:88px;height:88px;border-radius:50%;object-fit:cover"
+        onerror="this.style.display='none'">
+      {% else %}
+      <div class="avatar-placeholder" style="width:88px;height:88px;font-size:32px;">{{ inviter.username|first|upper }}
+      </div>
+      {% endif %}
+    </div>
+    <h2>{{ inviter.username }}</h2>
+    {% if inviter_profile.bio %}<div class="bio">{{ inviter_profile.bio }}</div>{% endif %}
+    <div class="invite-msg">
+      <span>{{ inviter.username }}</span> wants to chat with you on ChatApp!<br>
+      Join to connect instantly.
+    </div>
+    <div class="action-btns">
+      <a href="/register/?invite={{ invite_code }}" class="action-btn btn-register">
+        <i class="fas fa-user-plus"></i> Create Account & Connect
+      </a>
+      <a href="/login/?invite={{ invite_code }}" class="action-btn btn-login">
+        <i class="fas fa-sign-in-alt"></i> Already have an account? Sign In
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

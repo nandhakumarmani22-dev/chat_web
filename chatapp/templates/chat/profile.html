@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}My Profile — ChatApp{% endblock %}
+{% block extra_css %}
+<style>
+.profile-wrap { max-width: 600px; margin: 0 auto; padding: 30px 20px; }
+.back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--text2); font-size: 14px; margin-bottom: 24px; }
+.back-link:hover { color: var(--text); text-decoration: none; }
+.profile-card { background: var(--sidebar-header); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+.profile-banner { background: var(--green); height: 100px; }
+.profile-body { padding: 0 28px 28px; }
+.avatar-section { display: flex; align-items: flex-end; gap: 16px; margin-top: -44px; margin-bottom: 20px; }
+.avatar-edit { position: relative; width: 88px; height: 88px; }
+.avatar-edit .avatar { width: 88px; height: 88px; border: 4px solid var(--sidebar-header); border-radius: 50%; }
+.avatar-edit label { position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid var(--sidebar-header); }
+.avatar-edit label:hover { background: #019872; }
+.avatar-edit input { display: none; }
+.profile-name { font-size: 22px; font-weight: 500; margin-bottom: 2px; }
+.profile-username { font-size: 14px; color: var(--text2); }
+.section { margin-top: 24px; }
+.section h3 { font-size: 13px; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+.field input, .field textarea { width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 15px; outline: none; transition: border-color .2s; }
+.field input:focus, .field textarea:focus { border-color: var(--green); }
+.field textarea { resize: vertical; min-height: 70px; }
+.save-btn { background: var(--green); color: #fff; padding: 10px 24px; border-radius: var(--radius); font-size: 15px; font-weight: 500; transition: opacity .2s; }
+.save-btn:hover { opacity: .88; }
+.invite-box { background: var(--input-bg); border-radius: var(--radius); padding: 14px; }
+.invite-url { font-size: 13px; color: var(--green); word-break: break-all; margin-bottom: 10px; }
+.invite-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.copy-btn { background: var(--border); color: var(--text); padding: 7px 14px; border-radius: var(--radius); font-size: 13px; transition: background .15s; }
+.copy-btn:hover { background: var(--hover); }
+.msg-box { padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 16px; }
+.msg-success { background: rgba(0,168,132,0.12); border: 1px solid rgba(0,168,132,0.3); color: var(--green); }
+.msg-error { background: rgba(241,92,109,0.12); border: 1px solid var(--red); color: var(--red); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="profile-wrap">
+  <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to chats</a>
+
+  {% if success %}<div class="msg-box msg-success">{{ success }}</div>{% endif %}
+  {% if error %}<div class="msg-box msg-error">{{ error }}</div>{% endif %}
+
+  <div class="profile-card">
+    <div class="profile-banner"></div>
+    <div class="profile-body">
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_profile">
+        <div class="avatar-section">
+          <div class="avatar-edit">
+            <div class="avatar">
+              {% if profile.avatar %}
+                <img src="{{ profile.avatar.url }}" id="avatar-preview" style="width:88px;height:88px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">
+              {% else %}
+                <div class="avatar-placeholder" id="avatar-preview" style="width:88px;height:88px;font-size:32px;">{{ request.user.username|first|upper }}</div>
+              {% endif %}
+            </div>
+            <label title="Change photo">
+              <i class="fas fa-camera" style="color:#fff;font-size:12px"></i>
+              <input type="file" name="avatar" accept="image/*" onchange="previewAvatar(this)">
+            </label>
+          </div>
+          <div>
+            <div class="profile-name">{{ request.user.username }}</div>
+            <div class="profile-username">Member since {{ request.user.date_joined|date:"M Y" }}</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Profile Info</h3>
+          <div class="field">
+            <label>Phone Number</label>
+            <input type="tel" name="phone" value="{{ profile.phone_number|default:'' }}" placeholder="+1 234 567 8900">
+          </div>
+          <div class="field">
+            <label>Bio</label>
+            <textarea name="bio" placeholder="Write something about yourself…">{{ profile.bio }}</textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="save-btn"><i class="fas fa-save"></i> Save Changes</button>
+      </form>
+
+      <div class="section">
+        <h3>Your Invite Link</h3>
+        <div class="invite-box">
+          <div class="invite-url" id="invite-url">{{ invite_link }}</div>
+          <div class="invite-btns">
+            <button class="copy-btn" onclick="copyLink()"><i class="fas fa-copy"></i> Copy Link</button>
+            <button class="copy-btn" onclick="shareLink()"><i class="fas fa-share-alt"></i> Share</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const p = document.getElementById('avatar-preview');
+    p.outerHTML = `<img src="${e.target.result}" id="avatar-preview" style="width:88px;height:88px;border-radius:50%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+}
+function copyLink() {
+  const url = document.getElementById('invite-url').textContent.trim();
+  navigator.clipboard.writeText(url).then(() => showToast('Invite link copied!'));
+}
+function shareLink() {
+  const url = document.getElementById('invite-url').textContent.trim();
+  if (navigator.share) {
+    navigator.share({ title: 'Chat with me!', url });
+  } else copyLink();
+}
+</script>
+{% endblock %}

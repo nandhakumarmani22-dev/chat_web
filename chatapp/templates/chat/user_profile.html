@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}{{ other_user.username }} — ChatApp{% endblock %}
+{% block extra_css %}
+<style>
+  .page-wrap {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 28px 20px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text2);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .back-link:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .profile-card {
+    background: var(--sidebar-header);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .banner {
+    background: var(--green);
+    height: 90px;
+  }
+
+  .body {
+    padding: 0 24px 28px;
+  }
+
+  .av-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    margin-top: -40px;
+    margin-bottom: 16px;
+  }
+
+  .av-row .avatar {
+    width: 80px;
+    height: 80px;
+    border: 4px solid var(--sidebar-header);
+    border-radius: 50%;
+  }
+
+  .uname {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .status {
+    font-size: 14px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--text3);
+  }
+
+  .status .dot.online {
+    background: var(--online);
+  }
+
+  .bio {
+    font-size: 14px;
+    color: var(--text2);
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .info-row i {
+    width: 18px;
+    color: var(--green);
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn-act {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity .2s;
+  }
+
+  .btn-act:hover {
+    opacity: .85;
+    text-decoration: none;
+  }
+
+  .btn-green {
+    background: var(--green);
+    color: #fff;
+  }
+
+  .btn-gray {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .btn-red {
+    background: rgba(241, 92, 109, 0.15);
+    color: var(--red);
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back</a>
+  <div class="profile-card">
+    <div class="banner"></div>
+    <div class="body">
+      <div class="av-row">
+        <div class="avatar">
+          {% if other_profile.avatar %}
+          <img src="{{ other_profile.avatar.url }}" style="width:80px;height:80px;border-radius:50%;object-fit:cover"
+            onerror="this.style.display='none'">
+          {% else %}
+          <div class="avatar-placeholder" style="width:80px;height:80px;font-size:28px;">{{
+            other_user.username|first|upper }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="uname">{{ other_user.username }}</div>
+      <div class="status">
+        <span class="dot {% if other_profile.is_online %}online{% endif %}"></span>
+        {% if other_profile.is_online %}Online{% else %}Last seen {{ other_profile.last_seen|date:"H:i" }}{% endif %}
+      </div>
+      {% if other_profile.bio %}<div class="bio">{{ other_profile.bio }}</div>{% endif %}
+      {% if other_profile.phone_number %}
+      <div class="info-row"><i class="fas fa-phone"></i> {{ other_profile.phone_number }}</div>
+      {% endif %}
+      <div class="info-row"><i class="fas fa-calendar-alt"></i> Joined {{ other_user.date_joined|date:"M Y" }}</div>
+      <div class="actions">
+        {% if is_friend %}
+        <a href="/chat/{{ other_user.id }}/" class="btn-act btn-green"><i class="fas fa-comment"></i> Send Message</a>
+        <a href="/friends/remove/{{ other_user.id }}/" class="btn-act btn-red"
+          onclick="return confirm('Remove from friends?')"><i class="fas fa-user-minus"></i> Remove</a>
+        {% elif pending_sent %}
+        <span class="btn-act btn-gray"><i class="fas fa-clock"></i> Request Pending</span>
+        {% elif pending_recv %}
+        <a href="/friends/" class="btn-act btn-green"><i class="fas fa-check"></i> Accept Request</a>
+        {% else %}
+        <form method="POST" action="/friends/add/" style="display:inline">
+          {% csrf_token %}
+          <input type="hidden" name="identifier" value="{{ other_user.username }}">
+          <button type="submit" class="btn-act btn-green"><i class="fas fa-user-plus"></i> Add Friend</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

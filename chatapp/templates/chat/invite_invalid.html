@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Invalid Link{% endblock %}
+{% block content %}
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px">
+  <div>
+    <i class="fas fa-link-slash" style="font-size:64px;color:var(--text3);margin-bottom:20px"></i>
+    <h2 style="font-size:24px;margin-bottom:10px">Invalid Invite Link</h2>
+    <p style="color:var(--text2);margin-bottom:24px">This invite link is invalid or has expired.</p>
+    <a href="/register/" class="btn btn-primary"
+      style="background:var(--green);color:#fff;padding:12px 28px;border-radius:8px;font-size:15px">Register Instead</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Chatapp{% endblock %}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #111b21;
+  --sidebar: #111b21;
+  --sidebar-header: #202c33;
+  --chat-bg: #0b141a;
+  --chat-header: #202c33;
+  --input-bg: #2a3942;
+  --sent: #005c4b;
+  --recv: #202c33;
+  --text: #e9edef;
+  --text2: #8696a0;
+  --text3: #667781;
+  --green: #00a884;
+  --border: rgba(255,255,255,0.08);
+  --hover: rgba(255,255,255,0.05);
+  --active: rgba(255,255,255,0.08);
+  --online: #00a884;
+  --red: #f15c6d;
+  --blue: #53bdeb;
+  --radius: 8px;
+}
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { cursor: pointer; border: none; background: none; color: inherit; font-family: inherit; }
+input, textarea { font-family: inherit; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.hidden { display: none !important; }
+
+/* TOASTS */
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: var(--sidebar-header); border: 1px solid var(--border); border-left: 4px solid var(--green); border-radius: var(--radius); padding: 12px 16px; font-size: 14px; max-width: 320px; animation: slideIn .3s ease; }
+.toast.error { border-left-color: var(--red); }
+@keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* MODALS */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--sidebar-header); border-radius: 12px; padding: 24px; width: 90%; max-width: 440px; }
+.modal h3 { margin-bottom: 16px; font-size: 18px; }
+.modal input { width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+.modal input:focus { border-color: var(--green); }
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+.btn { padding: 9px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; transition: opacity .2s; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:hover { opacity: .88; }
+.btn-secondary { background: var(--border); color: var(--text2); }
+.btn-secondary:hover { background: var(--hover); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { opacity: .88; }
+
+/* AVATAR */
+.avatar { border-radius: 50%; object-fit: cover; background: #2a3942; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--green); color: #fff; font-weight: 600; font-size: 1em; border-radius: 50%; }
+
+/* STATUS DOT */
+.status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+.status-dot.online { background: var(--online); }
+</style>
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+<div id="toast-container"></div>
+{% block content %}{% endblock %}
+
+
+<script>
+function showToast(msg, type='success') {
+  const tc = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type === 'error' ? ' error' : '');
+  t.textContent = msg;
+  tc.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function getCookie(name) {
+  let v = null;
+  document.cookie.split(';').forEach(c => {
+    const [k, val] = c.trim().split('=');
+    if (k === name) v = decodeURIComponent(val);
+  });
+  return v;
+}
+
+const CSRF = getCookie('csrftoken');
+</script>
+
+<!-- Django messages data island (no JS linting here) -->
+<script type="application/json" id="django-messages">
+  [{% for message in messages %}{"text": "{{ message }}", "tags": "{{ message.tags }}"}{% if not forloop.last %},{% endif %}{% endfor %}]
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const el = document.getElementById("django-messages");
+    if (el) {
+      JSON.parse(el.textContent).forEach(function (msg) {
+        showToast(msg.text, msg.tags);
+      });
+    }
+  });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

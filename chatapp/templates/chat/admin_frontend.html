@@ -1,0 +1,154 @@
+{# ════════════════════════════════════════════════════════════════
+   PART 1 — Add to your home.html sidebar header-actions
+   Show "Admin Panel" button only for superuser
+════════════════════════════════════════════════════════════════ #}
+
+{% if request.user.is_superuser %}
+<a href="/admin-panel/" class="icon-btn" title="Admin Panel"
+   style="color:#f0c040;">
+  <i class="fas fa-shield-alt"></i>
+</a>
+{% endif %}
+
+
+
+
+<style>
+/* delete button on message — only visible to superuser */
+.msg-delete-btn {
+  position: absolute;
+  top: 4px;
+  left: -30px;               /* left of recv bubble */
+  opacity: 0;
+  background: rgba(220,53,69,.18);
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f15c6d;
+  font-size: 11px;
+  transition: opacity .15s, background .15s;
+}
+.msg-row.sent .msg-delete-btn {
+  left: auto;
+  right: -30px;              /* right of sent bubble */
+}
+.msg-row:hover .msg-delete-btn { opacity: 1; }
+.msg-delete-btn:hover { background: rgba(220,53,69,.35); }
+
+/* admin label on messages sent by superuser */
+.admin-msg-label {
+  font-size: 10px;
+  color: #f0c040;
+  font-weight: 600;
+  letter-spacing: .04em;
+  margin-bottom: 2px;
+  display: block;
+}
+</style>
+
+
+{# ════════════════════════════════════════════════════════════════
+   PART 3 — In chat_room.html appendMessage() JS function
+   Replace your existing appendMessage with this version
+════════════════════════════════════════════════════════════════ #}
+<script>
+const IS_SUPERUSER = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
+
+function appendMessage(m, scroll=true) {
+  const container = document.getElementById('messages-container');
+
+  // date divider
+  const d = m.date || '';
+  if (d && d !== lastDate) {
+    lastDate = d;
+    const div = document.createElement('div');
+    div.className = 'date-divider';
+    div.innerHTML = `<span>${formatDate(d)}</span>`;
+    container.appendChild(div);
+  }
+
+  const isSent = String(m.sender_id) === String(MY_ID);
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (isSent ? 'sent' : 'recv');
+  row.id = 'msg-' + m.id;
+
+  // message content
+  let inner = '';
+  if (m.message_type === 'image' && m.file_url) {
+    inner = `<img src="${m.file_url}" class="img-msg" onclick="window.open('${m.file_url}','_blank')" alt="image">`;
+  } else if (m.message_type === 'file' && m.file_url) {
+    inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
+      <i class="fas fa-file-alt"></i>
+      <div><div class="fname">${escHtml(m.file_name||'File')}</div><div class="fsize">Download</div></div>
+    </a>`;
+  } else {
+    inner = `<span class="msg-text">${escHtml(m.content)}</span>`;
+  }
+
+  // seen ticks for sent messages
+  const seenSvg = isSent
+    ? `<span class="seen-icon ${m.is_seen?'seen':'unseen'}">${m.is_seen ? TICK_SEEN : TICK_GREY}</span>`
+    : '';
+
+  // ── DELETE BUTTON: shown only to superuser ────────────────────
+  const deleteBtn = IS_SUPERUSER
+    ? `<button class="msg-delete-btn" onclick="deleteMessage(${m.id})" title="Delete message">
+         <i class="fas fa-trash"></i>
+       </button>`
+    : '';
+
+  // ── ADMIN LABEL: mark messages sent by the admin ──────────────
+  const adminLabel = (IS_SUPERUSER && isSent)
+    ? `<span class="admin-msg-label">Admin</span>`
+    : '';
+
+  row.innerHTML = `
+    <button class="reaction-trigger" onclick="showQuickReact(${m.id},event)" title="React">😊</button>
+    <div class="bubble-wrap">
+      ${adminLabel}
+      <div class="bubble">
+        ${deleteBtn}
+        ${inner}
+        <div class="meta">
+          <span class="time">${m.timestamp}</span>
+          ${seenSvg}
+        </div>
+      </div>
+    </div>`;
+
+  container.appendChild(row);
+  if (scroll) scrollToBottom();
+}
+
+// ── DELETE MESSAGE (superuser only — backend also checks) ─────
+async function deleteMessage(msgId) {
+  if (!confirm('Delete this message? This cannot be undone.')) return;
+  try {
+    const r = await fetch(`/api/delete-message/${msgId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    });
+    const d = await r.json();
+    if (d.success) {
+      const row = document.getElementById('msg-' + msgId);
+      if (row) {
+        row.style.transition = 'opacity .2s';
+        row.style.opacity = '0';
+        setTimeout(() => row.remove(), 200);
+      }
+      showToast('Message deleted');
+    } else {
+      showToast(d.error || 'Could not delete', 'error');
+    }
+  } catch(e) {
+    showToast('Network error', 'error');
+  }
+}
+</script>
+
+

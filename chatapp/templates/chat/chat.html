@@ -1,0 +1,867 @@
+{% extends 'chat/home.html' %}
+{% block title %}Chat with {{ other_user.username }} — ChatApp{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  /* ── EMOJI PICKER ─────────────────────────────────────────── */
+  #emoji-picker {
+    position: absolute;
+    bottom: 64px;
+    left: 8px;
+    width: 340px;
+    background: #1e2a32;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+    z-index: 500;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #emoji-picker.open {
+    display: flex;
+  }
+
+  /* search bar */
+  #ep-search-wrap {
+    padding: 10px 10px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  #ep-search {
+    width: 100%;
+    background: #131c21;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 7px 12px 7px 32px;
+    color: #e9edef;
+    font-size: 13px;
+    outline: none;
+    background-image: var(--chat-pattern, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M0 0h60v60H0z' fill='%230b141a'/%3E%3Cpath d='M30 10c-11 0-20 9-20 20s9 20 20 20 20-9 20-20-9-20-20-20zm0 36c-8.8 0-16-7.2-16-16S21.2 14 30 14s16 7.2 16 16-7.2 16-16 16z' fill='rgba(255,255,255,.015)'/%3E%3C/svg%3E"));
+    background-repeat: no-repeat;
+    background-position: 10px center;
+  }
+
+  #ep-search::placeholder {
+    color: #667781;
+  }
+
+  /* category tabs */
+  #ep-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  #ep-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ep-tab {
+    flex-shrink: 0;
+    padding: 6px 8px;
+    font-size: 18px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    transition: background .15s;
+    border-bottom: 2px solid transparent;
+    line-height: 1;
+  }
+
+  .ep-tab:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .ep-tab.active {
+    background: rgba(0, 168, 132, 0.12);
+    border-bottom-color: #00a884;
+  }
+
+  /* emoji grid */
+  #ep-body {
+    height: 220px;
+    overflow-y: auto;
+    padding: 8px 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  #ep-body::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  #ep-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+
+  .ep-section-label {
+    font-size: 11px;
+    color: #667781;
+    padding: 4px 6px 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .ep-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+  }
+
+  .ep-emoji {
+    font-size: 22px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .1s, transform .1s;
+  }
+
+  .ep-emoji:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.25);
+  }
+
+  .ep-empty {
+    color: #667781;
+    font-size: 13px;
+    text-align: center;
+    padding: 32px 0;
+    grid-column: 1/-1;
+  }
+
+  /* 1. Bubble must shrink to content, not stretch */
+  .bubble {
+    position: relative;
+    padding: 7px 10px 22px 10px;
+    /* bottom: 22px reserves space */
+    min-width: 90px;
+    width: fit-content;
+  }
+
+
+  /* 2. Pad text so it never overlaps timestamp */
+  .bubble .msg-text {
+    padding-right: 52px;
+    /* ← add this */
+    display: block;
+  }
+
+  /* 3. Float timestamp to bottom-right of bubble */
+  .bubble .msg-meta {
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+    display: flex;
+    flex-direction: row;
+    /* ← THIS was your bug, it was column */
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  /* 4. Clearfix so bubble height wraps the float */
+  .bubble::after {
+    content: '';
+    display: block;
+    clear: both;
+  }
+
+  /* ── REACTION POPUP (hover on bubble) ────────────────────── */
+  .msg-row {
+    position: relative;
+  }
+
+  .reaction-trigger {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity .15s;
+    background: #1e2a32;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 4px 8px;
+    font-size: 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    z-index: 10;
+    line-height: 1;
+  }
+
+  .msg-row.sent .reaction-trigger {
+    right: calc(100% + 6px);
+  }
+
+  .msg-row.recv .reaction-trigger {
+    left: calc(100% + 6px);
+  }
+
+  .msg-row:hover .reaction-trigger {
+    opacity: 1;
+  }
+
+  .quick-reactions {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    background: #1e2a32;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 6px 8px;
+    display: none;
+    gap: 4px;
+    z-index: 50;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .msg-row.sent .quick-reactions {
+    right: 0;
+  }
+
+  .msg-row.recv .quick-reactions {
+    left: 0;
+  }
+
+  .quick-reactions.show {
+    display: flex;
+  }
+
+  .qr-emoji {
+    font-size: 22px;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 8px;
+    transition: transform .12s, background .1s;
+    line-height: 1;
+  }
+
+  .qr-emoji:hover {
+    transform: scale(1.3);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* reactions displayed on message */
+  .msg-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .msg-row.sent .msg-reactions {
+    justify-content: flex-end;
+  }
+
+  .reaction-chip {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 2px 7px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .reaction-chip:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .reaction-chip .rc-count {
+    font-size: 11px;
+    color: #8696a0;
+  }
+
+  .reaction-chip.mine {
+    border-color: rgba(0, 168, 132, 0.5);
+    background: rgba(0, 168, 132, 0.08);
+  }
+</style>
+{% endblock %}
+
+{% block chat_content %}
+<div class="chat-header">
+  <button class="back-btn icon-btn" onclick="history.back()" style="margin-right:4px">
+    <i class="fas fa-arrow-left"></i>
+  </button>
+  <a href="/profile/{{ other_user.username }}/">
+    <div class="avatar" style="width:40px;height:40px;">
+      {% if other_profile.avatar %}
+      <img src="{{ other_profile.avatar.url }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover"
+        onerror="this.style.display='none'">
+      {% else %}
+      <div class="avatar-placeholder" style="width:40px;height:40px;">{{ other_user.username|first|upper }}</div>
+      {% endif %}
+    </div>
+  </a>
+  <div class="info">
+    <h2>{{ other_user.username }}</h2>
+    <div class="status {% if other_profile.is_online %}online-text{% endif %}" id="chat-status">
+      {% if other_profile.is_online %}Online{% else %}Last seen {{ other_profile.last_seen|date:"H:i" }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:4px">
+    <button class="icon-btn" onclick="scrollToBottom()" title="Scroll to bottom">
+      <i class="fas fa-arrow-down"></i>
+    </button>
+
+    <a href="/profile/{{ other_user.username }}/" class="icon-btn" title="View Profile">
+      <i class="fas fa-info-circle"></i>
+    </a>
+
+    <!-- REMOVE FRIEND FORM -->
+    <form method="POST" action="/friends/remove/{{ other_user.id }}/" style="margin:0">
+      {% csrf_token %}
+      <button type="submit" class="icon-btn" title="Remove friend"
+        onclick="return confirm('Remove {{ other_user.username }} from friends?')">
+        <i class="fas fa-user-minus"></i>
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="messages-area" id="messages-area">
+  <div id="messages-container"></div>
+</div>
+<div class="typing-indicator" id="typing-indicator"></div>
+
+<!-- INPUT AREA -->
+<div class="chat-input" style="position:relative;">
+
+  <!-- EMOJI PICKER PANEL -->
+  <div id="emoji-picker">
+    <div id="ep-search-wrap">
+      <input id="ep-search" type="text" placeholder="Search emoji…" autocomplete="off">
+    </div>
+    <div id="ep-tabs"></div>
+    <div id="ep-body"></div>
+  </div>
+
+  <!-- EMOJI TOGGLE BUTTON -->
+  <button class="attach-btn" id="emoji-toggle-btn" title="Emoji" onclick="toggleEmojiPicker(event)">
+    <i class="fas fa-smile" style="font-size:20px;color:#8696a0"></i>
+  </button>
+
+  <label class="attach-btn" title="Send file">
+    <i class="fas fa-paperclip"></i>
+    <input type="file" id="file-input" style="display:none" accept="*/*" onchange="sendFile()">
+  </label>
+  <label class="attach-btn" title="Send image">
+    <i class="fas fa-image"></i>
+    <input type="file" id="image-input" style="display:none" accept="image/*" onchange="sendImage()">
+  </label>
+  <div class="input-box">
+    <textarea id="msg-input" placeholder="Type a message" rows="1" onkeydown="handleKey(event)"
+      oninput="onTyping()"></textarea>
+  </div>
+  <button class="send-btn" onclick="sendMsg()">
+    <i class="fas fa-paper-plane"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const OTHER_ID = "{{ other_user.id }}";
+  const MY_ID = "{{ request.user.id }}";
+  let ws, typingTimer, lastDate = '';
+
+  /* ═══════════════════════════════════════════════════════════
+     EMOJI DATA  — categories + emojis
+  ═══════════════════════════════════════════════════════════ */
+  const EMOJI_CATEGORIES = [
+    { id: 'recent', icon: '🕐', label: 'Recently used', emojis: [] },
+    {
+      id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: [
+        '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+        '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+        '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+        '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁',
+        '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
+        '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹',
+        '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾',
+        '👋', '🤚', '🖐', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
+        '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏',
+        '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🫀', '🫁', '🧠', '🦷', '🦴', '👀',
+        '👁', '👅', '👄', '🫦', '👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '👩', '🧓', '👴', '👵',
+      ]
+    },
+    {
+      id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: [
+        '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈',
+        '🙉', '🙊', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛',
+        '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷', '🦂', '🐢', '🦎', '🐍', '🐲', '🦕', '🦖', '🦈', '🐬',
+        '🐳', '🐋', '🦭', '🐊', '🦅', '🦁', '🐘', '🦏', '🦛', '🦒', '🦓', '🦬', '🐃', '🐂', '🐄', '🦌',
+        '🐏', '🐑', '🐐', '🦙', '🦘', '🦥', '🦦', '🦨', '🦡', '🐇', '🦫', '🦔', '🐿', '🌵', '🎄', '🌲',
+        '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🌾', '🌺', '🌸', '🌼',
+        '🌻', '🌞', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌙', '🌟',
+        '⭐', '🌠', '🌌', '⛅', '🌤', '🌈', '⚡', '❄️', '🌊', '💧', '🔥', '🌍', '🌎', '🌏',
+      ]
+    },
+    {
+      id: 'food', icon: '🍔', label: 'Food & drink', emojis: [
+        '🍎', '🍊', '🍋', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
+        '🥦', '🥬', '🥒', '🌶', '🫑', '🌽', '🥕', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨',
+        '🧀', '🥚', '🍳', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕', '🫓', '🥙', '🧆',
+        '🌮', '🌯', '🫔', '🥗', '🥘', '🫕', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙',
+        '🍚', '🍘', '🍥', '🥮', '🍢', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰',
+        '🥜', '🍯', '🧃', '🥤', '🧋', '☕', '🫖', '🍵', '🧉', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹',
+      ]
+    },
+    {
+      id: 'travel', icon: '✈️', label: 'Travel & places', emojis: [
+        '🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍',
+        '🛺', '🚲', '🛴', '🛹', '🛼', '🚏', '🛣', '🛤', '⛽', '🛞', '🚨', '🚥', '🚦', '🚧', '⚓', '🛟',
+        '⛵', '🛶', '🚤', '🛳', '⛴', '🛥', '🚢', '✈️', '🛩', '🛫', '🛬', '🪂', '💺', '🚁', '🛸', '🚀',
+        '🛰', '⛰', '🏔', '🗻', '🏕', '🏖', '🏜', '🏝', '🏞', '🏟', '🏛', '🏗', '🧱', '🏘', '🏚', '🏠',
+        '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '💒', '🗼',
+        '🗽', '⛪', '🕌', '🛕', '🕍', '⛩', '🕋', '⛲', '⛺', '🌁', '🌃', '🏙', '🌄', '🌅', '🌆', '🌇',
+        '🌉', '🌌', '🎠', '🎡', '🎢', '💈', '🎪', '🌐', '🗺', '🧭', '🏔', '❤️‍🔥',
+      ]
+    },
+    {
+      id: 'objects', icon: '💡', label: 'Objects', emojis: [
+        '⌚', '📱', '💻', '⌨️', '🖥', '🖨', '🖱', '🖲', '💾', '💿', '📀', '📷', '📸', '📹', '🎥', '📽',
+        '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🧭', '⏱', '⏲', '⏰', '🕰', '⌛', '⏳', '📡', '🔋',
+        '💡', '🔦', '🕯', '🪔', '🧯', '🛢', '💵', '💴', '💶', '💷', '💸', '💳', '🪙', '💎', '⚖️', '🧰',
+        '🔧', '🪛', '🔨', '⚒', '🛠', '⛏', '⛏', '🪚', '🔩', '🪤', '🧲', '🔫', '💣', '🪓', '🔪', '🗡',
+        '⚔️', '🛡', '🚬', '⚰️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳', '💊', '🩺', '🩹',
+        '🩼', '🩻', '💉', '🩸', '🧬', '🦠', '🧫', '🧪', '🌡', '🧹', '🧺', '🧻', '🚽', '🚰', '🚿', '🛁',
+        '🪠', '🧼', '🫧', '🪥', '🧽', '🧴', '🪒', '🪮', '🧷', '🪡', '🧵', '🧶', '🪢', '👓', '🕶', '🥽',
+        '🌂', '☂️', '🧵', '🪡', '🧶', '🪢', '👑', '👒', '🎩', '🧢', '⛑', '📿', '💄', '💍', '💎',
+      ]
+    },
+    {
+      id: 'symbols', icon: '❤️', label: 'Symbols', emojis: [
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+        '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈',
+        '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️',
+        '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹',
+        '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️',
+        '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️',
+        '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧',
+        '🚾', '♿', '🅿️', '🛗', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '⚧', '🚻', '🚮',
+        '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣',
+        '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '▶️', '⏸', '⏹',
+        '⏺', '⏭', '⏮', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️',
+        '↙️', '↖️', '↕️', '↔️', '↩️', '↪️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔃', '🎵', '🎶', '➕', '➖',
+        '➗', '✖️', '♾', '💲', '💱', '™️', '©️', '®️', '〰️', '➰', '➿', '🔚', '🔙', '🔛', '🔝', '🔜',
+        '✔️', '☑️', '🔘', '🔲', '🔳', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦',
+        '🟪', '⬛', '⬜', '🔶', '🔷', '🔸', '🔹', '🔺', '🔻', '💠', '🔘', '🔲',
+      ]
+    },
+    {
+      id: 'activity', icon: '⚽', label: 'Activities', emojis: [
+        '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍',
+        '🏏', '🪃', '🥅', '⛳', '🪁', '🛝', '🎣', '🤿', '🎽', '🎿', '🛷', '🥌', '🎯', '🪃', '🎱', '🎮',
+        '🎰', '🎲', '♟', '🧩', '🪅', '🎭', '🎨', '🖼', '🎪', '🤹', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘',
+        '🎷', '🎺', '🎸', '🪕', '🎻', '🎬', '🎤', '🎭', '🎪', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🏵',
+        '🎗', '🎫', '🎟', '🎪', '🤸', '⛹️', '🤺', '🏇', '⛷', '🏂', '🪂', '🏋️', '🤼', '🤽', '🤾', '🤺',
+        '🏊', '🧘', '🛀', '🛌', '🧗', '🚴', '🏄', '🧜', '🧝', '🧙', '🧚', '🧛', '🧟', '🎅', '🤶', '🦸',
+      ]
+    },
+  ];
+
+  const QUICK_REACT = ['❤️', '😂', '😮', '😢', '😡', '👍', '👎', '🙏'];
+
+  /* ═══════════════════════════════════════════════════════════
+     RECENT EMOJIS  (localStorage)
+  ═══════════════════════════════════════════════════════════ */
+  function getRecent() {
+    try { return JSON.parse(localStorage.getItem('ep_recent') || '[]'); } catch (e) { return []; }
+  }
+  function addRecent(emoji) {
+    let r = getRecent().filter(e => e !== emoji);
+    r.unshift(emoji);
+    r = r.slice(0, 24);
+    try { localStorage.setItem('ep_recent', JSON.stringify(r)); } catch (e) { }
+    EMOJI_CATEGORIES[0].emojis = r;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     BUILD EMOJI PICKER
+  ═══════════════════════════════════════════════════════════ */
+  let activeCat = 'smileys';
+
+  function buildEmojiPicker() {
+    EMOJI_CATEGORIES[0].emojis = getRecent();
+    const tabsEl = document.getElementById('ep-tabs');
+    tabsEl.innerHTML = '';
+    EMOJI_CATEGORIES.forEach(cat => {
+      if (cat.id === 'recent' && !cat.emojis.length) return;
+      const t = document.createElement('div');
+      t.className = 'ep-tab' + (cat.id === activeCat ? ' active' : '');
+      t.textContent = cat.icon;
+      t.title = cat.label;
+      t.dataset.cat = cat.id;
+      t.onclick = () => { activeCat = cat.id; renderEmojiGrid(); renderTabs(); };
+      tabsEl.appendChild(t);
+    });
+  }
+
+  function renderTabs() {
+    document.querySelectorAll('.ep-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.cat === activeCat);
+    });
+  }
+
+  function renderEmojiGrid(filter = '') {
+    const body = document.getElementById('ep-body');
+    body.innerHTML = '';
+    if (filter) {
+      const all = EMOJI_CATEGORIES.slice(1).flatMap(c => c.emojis);
+      const results = all.filter(e => emojiMatchesSearch(e, filter));
+      const grid = document.createElement('div');
+      grid.className = 'ep-grid';
+      if (results.length) {
+        results.forEach(e => grid.appendChild(makeEmojiEl(e)));
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'ep-empty';
+        empty.textContent = 'No emoji found';
+        grid.appendChild(empty);
+      }
+      body.appendChild(grid);
+      return;
+    }
+    const cats = activeCat === 'recent'
+      ? [EMOJI_CATEGORIES[0]]
+      : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
+    cats.forEach(cat => {
+      if (!cat.emojis.length) return;
+      const label = document.createElement('div');
+      label.className = 'ep-section-label';
+      label.textContent = cat.label;
+      body.appendChild(label);
+      const grid = document.createElement('div');
+      grid.className = 'ep-grid';
+      cat.emojis.forEach(e => grid.appendChild(makeEmojiEl(e)));
+      body.appendChild(grid);
+    });
+  }
+
+  function makeEmojiEl(emoji) {
+    const el = document.createElement('div');
+    el.className = 'ep-emoji';
+    el.textContent = emoji;
+    el.title = emoji;
+    el.onclick = () => insertEmoji(emoji);
+    return el;
+  }
+
+  function emojiMatchesSearch(emoji, q) {
+    return emoji.toLowerCase().includes(q.toLowerCase());
+  }
+
+  function toggleEmojiPicker(e) {
+    e.stopPropagation();
+    const picker = document.getElementById('emoji-picker');
+    if (picker.classList.contains('open')) {
+      picker.classList.remove('open');
+    } else {
+      buildEmojiPicker();
+      renderEmojiGrid();
+      picker.classList.add('open');
+      document.getElementById('ep-search').value = '';
+      document.getElementById('ep-search').focus();
+    }
+  }
+
+  document.getElementById('ep-search').addEventListener('input', function () {
+    renderEmojiGrid(this.value.trim());
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn')) {
+      document.getElementById('emoji-picker').classList.remove('open');
+    }
+  });
+
+  function insertEmoji(emoji) {
+    const inp = document.getElementById('msg-input');
+    const start = inp.selectionStart;
+    const end = inp.selectionEnd;
+    inp.value = inp.value.slice(0, start) + emoji + inp.value.slice(end);
+    const pos = start + emoji.length;
+    inp.setSelectionRange(pos, pos);
+    inp.focus();
+    addRecent(emoji);
+    onTyping();
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     MESSAGE REACTIONS
+  ═══════════════════════════════════════════════════════════ */
+  // msgReactions: { msgId: { emoji: count, ... } }
+  const msgReactions = {};
+  // myReactions: { msgId: Set of emojis I reacted with }
+  const myReactions = {};
+
+  function getReactionsEl(msgId) {
+    return document.querySelector(`#msg-${msgId} .msg-reactions`);
+  }
+
+  function renderReactions(msgId) {
+    const el = getReactionsEl(msgId);
+    if (!el) return;
+    const rx = msgReactions[msgId] || {};
+    const mine = myReactions[msgId] || new Set();
+    el.innerHTML = '';
+    Object.entries(rx).forEach(([emoji, count]) => {
+      if (!count) return;
+      const chip = document.createElement('span');
+      chip.className = 'reaction-chip' + (mine.has(emoji) ? ' mine' : '');
+      chip.innerHTML = `${emoji}<span class="rc-count">${count > 1 ? count : ''}</span>`;
+      chip.title = `${count} reaction${count > 1 ? 's' : ''}`;
+      chip.onclick = () => toggleReaction(msgId, emoji);
+      el.appendChild(chip);
+    });
+  }
+
+  function toggleReaction(msgId, emoji) {
+    if (!msgReactions[msgId]) msgReactions[msgId] = {};
+    if (!myReactions[msgId]) myReactions[msgId] = new Set();
+    const mine = myReactions[msgId];
+    if (mine.has(emoji)) {
+      mine.delete(emoji);
+      msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1);
+    } else {
+      mine.add(emoji);
+      msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1;
+    }
+    addRecent(emoji);
+    renderReactions(msgId);
+    closeAllQuickReact();
+  }
+
+  function showQuickReact(msgId, e) {
+    e.stopPropagation();
+    closeAllQuickReact();
+    const row = document.getElementById('msg-' + msgId);
+    if (!row) return;
+    let qr = row.querySelector('.quick-reactions');
+    if (!qr) {
+      qr = document.createElement('div');
+      qr.className = 'quick-reactions';
+      qr.innerHTML = QUICK_REACT.map(em =>
+        `<span class="qr-emoji" title="${em}" onclick="toggleReaction(${msgId},'${em}')">${em}</span>`
+      ).join('');
+      row.appendChild(qr);
+    }
+    qr.classList.add('show');
+  }
+  function closeAllQuickReact() {
+    document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show'));
+  }
+  document.addEventListener('click', closeAllQuickReact);
+
+  /* ═══════════════════════════════════════════════════════════
+     MESSAGES
+  ═══════════════════════════════════════════════════════════ */
+  function renderMessages(msgs) {
+    const container = document.getElementById('messages-container');
+    container.innerHTML = '';
+    lastDate = '';
+    msgs.forEach(m => appendMessage(m, false));
+    scrollToBottom();
+  }
+
+  function appendMessage(m, scroll = true) {
+    const container = document.getElementById('messages-container');
+    const d = m.date || '';
+    if (d && d !== lastDate) {
+      lastDate = d;
+      const div = document.createElement('div');
+      div.className = 'date-divider';
+      div.innerHTML = `<span>${formatDate(d)}</span>`;
+      container.appendChild(div);
+    }
+    const isSent = m.sender_id == MY_ID;
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (isSent ? 'sent' : 'recv');
+    row.id = 'msg-' + m.id;
+
+    let inner = '';
+    if (m.message_type === 'image' && m.file_url) {
+      inner = `<img src="${m.file_url}" class="img-msg" onclick="window.open('${m.file_url}','_blank')" alt="image">`;
+    } else if (m.message_type === 'file' && m.file_url) {
+      inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
+      <i class="fas fa-file-alt"></i>
+      <div class="file-info"><div class="fname">${escHtml(m.file_name || 'File')}</div><div class="fsize">Download</div></div>
+    </a>`;
+    } else {
+      inner = `<span>${escHtml(m.content)}</span>`;
+    }
+
+    const seenIcon = isSent
+      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}">👁</span>`
+      : '';
+
+    row.innerHTML = `
+    <button class="reaction-trigger" onclick="showQuickReact(${m.id},event)" title="React">😊</button>
+    <div>
+      <div class="bubble">
+        ${inner}
+        <div class="meta"><span class="time">${m.timestamp}</span>${seenIcon}</div>
+      </div>
+      <div class="msg-reactions"></div>
+    </div>`;
+
+    container.appendChild(row);
+    if (scroll) scrollToBottom();
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+  }
+  function formatDate(d) {
+    const today = new Date().toISOString().slice(0, 10);
+    const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (d === today) return 'Today';
+    if (d === yest) return 'Yesterday';
+    return d;
+  }
+  function scrollToBottom() {
+    const area = document.getElementById('messages-area');
+    area.scrollTop = area.scrollHeight;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SEND / UPLOAD
+  ═══════════════════════════════════════════════════════════ */
+  async function loadMessages() {
+    const r = await fetch(`/api/messages/${OTHER_ID}/`);
+    const d = await r.json();
+    renderMessages(d.messages);
+  }
+
+  function sendMsg() {
+    const inp = document.getElementById('msg-input');
+    const txt = inp.value.trim();
+    if (!txt) return;
+    document.getElementById('emoji-picker').classList.remove('open');
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ action: 'message', content: txt }));
+    } else {
+      fetch('/api/send-message/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
+        body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}`
+      }).then(r => r.json()).then(d => { if (!d.error) appendMessage(d); });
+    }
+    inp.value = '';
+    inp.style.height = 'auto';
+  }
+
+  async function sendFile() {
+    const f = document.getElementById('file-input').files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
+    const r = await fetch('/api/upload-file/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd });
+    const d = await r.json(); if (!d.error) appendMessage(d);
+    document.getElementById('file-input').value = '';
+  }
+
+  async function sendImage() {
+    const f = document.getElementById('image-input').files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
+    const r = await fetch('/api/upload-file/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd });
+    const d = await r.json(); if (!d.error) appendMessage(d);
+    document.getElementById('image-input').value = '';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  }
+
+  function onTyping() {
+    const ta = document.getElementById('msg-input');
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => ws.send(JSON.stringify({ action: 'typing', is_typing: false })), 2000);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     WEBSOCKET
+  ═══════════════════════════════════════════════════════════ */
+  function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/chat/${OTHER_ID}/`);
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.type === 'message') {
+        appendMessage(data);
+        if (data.sender_id != MY_ID) ws.send(JSON.stringify({ action: 'mark_seen' }));
+      } else if (data.type === 'typing') {
+        const ti = document.getElementById('typing-indicator');
+        ti.innerHTML = data.is_typing
+          ? `<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span> typing...` : '';
+      } else if (data.type === 'seen') {
+        document.querySelectorAll('.seen-icon.unseen').forEach(el => {
+          el.className = 'seen-icon seen'; el.textContent = '👁';
+        });
+      } else if (data.type === 'online_status' && data.user_id == OTHER_ID) {
+        const st = document.getElementById('chat-status');
+        if (st) { st.textContent = data.is_online ? 'Online' : 'Offline'; st.className = 'status' + (data.is_online ? ' online-text' : ''); }
+        const dot = document.getElementById(`dot-${OTHER_ID}`);
+        if (dot) dot.className = 'status-dot' + (data.is_online ? ' online' : '');
+      }
+    };
+    ws.onclose = () => setTimeout(connectWS, 3000);
+  }
+
+  function getCookie(name) {
+    let v = null;
+    document.cookie.split(';').forEach(c => {
+      const [k, val] = c.trim().split('=');
+      if (k === name) v = decodeURIComponent(val);
+    });
+    return v;
+  }
+
+  /* init */
+  loadMessages();
+  connectWS();
+  const fi = document.getElementById('friend-{{ other_user.id }}');
+  if (fi) fi.classList.add('active');
+
+  /* ══════════════════════════════════════
+   BACKGROUND — apply saved bg to chat
+══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  const saved = localStorage.getItem('chat_bg');
+  if (!saved) return;
+
+  const targets = [
+    document.getElementById('messages-area'),
+    document.querySelector('.messages-area'),
+    document.querySelector('.chat-panel'),
+  ];
+
+  targets.forEach(el => {
+    if (!el) return;
+    el.style.setProperty('background-image',    `url('${saved}')`, 'important');
+    el.style.setProperty('background-size',     'cover',           'important');
+    el.style.setProperty('background-position', 'center',          'important');
+    el.style.setProperty('background-repeat',   'no-repeat',       'important');
+  });
+});
+</script>
+{% endblock %}
