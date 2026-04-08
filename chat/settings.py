@@ -1,20 +1,17 @@
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent  # ✅ FIX 1: was .parent only — points to wrong dir
 
-SECRET_KEY = 'django-insecure-change-this-in-production-xyz123abc456'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production-xyz123abc456')
 
-DEBUG = True
+DEBUG = False  # ✅ FIX 2: removed duplicate DEBUG=True above
 
 ALLOWED_HOSTS = [
     'chat-web-qxgy.onrender.com',
     'localhost',
     '127.0.0.1',
 ]
-
-DEBUG = False  # must be False in production
-PORT = os.environ.get('PORT', 8000)
 
 CSRF_TRUSTED_ORIGINS = [
     'https://chat-web-qxgy.onrender.com',
@@ -31,13 +28,16 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',        # ✅ ADD — must be BEFORE staticfiles
     'django.contrib.staticfiles',
+    'cloudinary',                # ✅ ADD
     'channels',
     'chatapp',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ ADD — for static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -65,7 +65,6 @@ TEMPLATES = [
     },
 ]
 
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -73,24 +72,37 @@ DATABASES = {
     }
 }
 
+# ✅ FIX 3: Use Redis on Render, not InMemoryChannelLayer (resets on restart)
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [os.environ.get('REDIS_URL', 'redis://localhost:6379')],
+        },
     },
 }
 
 AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # ✅ ADD
 
+# ✅ FIX 4: Cloudinary replaces local media storage
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY':    os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+}
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 MEDIA_URL = '/media/'
+# MEDIA_ROOT is no longer needed with Cloudinary, but harmless to keep
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -98,8 +110,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
-
-APPEND_SLASH = True  # already True by default
-
-TIME_ZONE = 'Asia/Kolkata'
-USE_TZ = True
+APPEND_SLASH = True

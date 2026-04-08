@@ -6,7 +6,8 @@ from django.utils import timezone
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    avatar = models.ImageField(upload_to='profiles/', null=True, blank=True, default='profiles/default.png')
+    # ✅ Removed default='profiles/default.png' — doesn't work on Cloudinary
+    avatar = models.ImageField(upload_to='profiles/', null=True, blank=True)
     invite_code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     phone_number = models.CharField(max_length=20, blank=True, null=True, unique=True)
     is_online = models.BooleanField(default=False)
@@ -20,12 +21,18 @@ class UserProfile(models.Model):
         return f'/invite/{self.invite_code}/'
 
     def get_avatar_url(self):
-        if self.avatar and hasattr(self.avatar, 'url'):
+        """
+        Returns avatar URL safe for both Cloudinary (production) and
+        local storage (development). Falls back to ui-avatars.com letter
+        avatar — no static file or Cloudinary upload required.
+        """
+        if self.avatar:
             try:
-                return self.avatar.url
+                return self.avatar.url  # Cloudinary returns full https:// URL
             except Exception:
                 pass
-        return '/static/images/default_avatar.png'
+        # ✅ Auto-generates a letter avatar — no default.png needed
+        return f'https://ui-avatars.com/api/?name={self.user.username}&background=128C7E&color=fff&size=128&bold=true'
 
 
 class FriendRequest(models.Model):
@@ -82,9 +89,13 @@ class Message(models.Model):
         return f'{self.sender.username} → {self.receiver.username}: {self.content[:30]}'
 
     def get_file_url(self):
+        """
+        Returns Cloudinary CDN URL in production, local /media/ URL in dev.
+        Never raises — returns empty string if file missing.
+        """
         if self.file:
             try:
-                return self.file.url
+                return self.file.url  # ✅ Cloudinary returns full https:// URL
             except Exception:
                 return ''
         return ''
@@ -97,7 +108,6 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     link = models.CharField(max_length=255, blank=True)
-     
 
     class Meta:
         ordering = ['-created_at']

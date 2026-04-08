@@ -41,6 +41,22 @@ def superuser_required(view_func):
     )(view_func)
 
 
+# ✅ FIX 1: Safe avatar URL helper — works with Cloudinary AND local storage
+def get_avatar_url(profile):
+    """
+    Returns a safe avatar URL regardless of storage backend.
+    Cloudinary returns full https:// URLs via .url
+    Falls back to ui-avatars.com for missing avatars (no static file needed).
+    """
+    if profile.avatar:
+        try:
+            return profile.avatar.url  # Cloudinary CDN URL or local path
+        except Exception:
+            pass
+    # Fallback: generate letter avatar from username (free, no upload needed)
+    return f'https://ui-avatars.com/api/?name={profile.user.username}&background=128C7E&color=fff&size=128'
+
+
 def _build_friend_data(user):
     """Shared helper — returns a JSON-safe friend_data list."""
     friends = get_friends(user)
@@ -64,7 +80,8 @@ def _build_friend_data(user):
             'user': {'id': friend.id, 'username': friend.username},
             'profile': {
                 'is_online': fp.is_online,
-                'avatar': fp.avatar.url if fp.avatar else None,
+                # ✅ FIX 1 applied: use helper instead of fp.avatar.url directly
+                'avatar': get_avatar_url(fp),
             },
             'unread': unread,
             'last_msg': last_msg,
@@ -122,7 +139,6 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user:
-            # ❌ BLOCK ADMIN HERE
             if user.is_superuser or user.is_staff:
                 error = "Admin must login via admin panel!"
             else:
@@ -161,40 +177,27 @@ def register_view(request):
 
         if not username or not password:
             error = 'Username and password are required.'
-
         elif password != password2:
             error = 'Passwords do not match.'
-
         elif User.objects.filter(username=username).exists():
             error = 'Username already taken.'
-
         elif phone and UserProfile.objects.filter(phone_number=phone).exists():
             error = 'Phone number already registered.'
-
         else:
-            # ✅ Create user
             user = User.objects.create_user(username=username, password=password)
-
-            # ✅ Ensure normal user
             user.is_staff = False
             user.is_superuser = False
             user.save()
 
-            # ✅ Create profile
             profile = get_or_create_profile(user)
 
             if phone:
                 profile.phone_number = phone
                 profile.save()
 
-            # ✅ SAVE invite in session (IMPORTANT)
             if invite_code:
                 request.session['invite_code'] = invite_code
 
-            # ❌ REMOVE THIS (very important)
-            # login(request, user)
-
-            # ✅ Go to login page
             return redirect('login')
 
     return render(request, 'registration/register.html', {
@@ -202,8 +205,9 @@ def register_view(request):
         'invite_code': invite_code
     })
 
+
 # ════════════════════════════════════════════════════════════════
-#  HOME  (superuser sees all users, normal user sees friends only)
+#  HOME
 # ════════════════════════════════════════════════════════════════
 
 @login_required
@@ -221,7 +225,6 @@ def home(request):
     ).count()
 
     if request.user.is_superuser:
-        # superuser sees every user in the system
         all_users = User.objects.exclude(id=request.user.id).select_related('profile')
         friend_data = []
         for u in all_users:
@@ -240,7 +243,6 @@ def home(request):
                 'unread':   unread,
             })
     else:
-        # normal user sees only their friends
         friend_data = _build_friend_data_objects(request.user)
 
     return render(request, 'chat/home.html', {
@@ -252,7 +254,7 @@ def home(request):
 
 
 # ════════════════════════════════════════════════════════════════
-#  CHAT VIEW  (superuser can open any chat)
+#  CHAT VIEW
 # ════════════════════════════════════════════════════════════════
 
 @login_required
@@ -264,7 +266,6 @@ def chat_view(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
     other_profile = get_or_create_profile(other_user)
 
-    # superuser bypasses friendship check
     if not request.user.is_superuser:
         if not are_friends(request.user, other_user):
             messages.error(request, 'You are not friends with this user.')
@@ -326,9 +327,10 @@ def upload_file(request):
         receiver=receiver,
         content=f'Sent a {msg_type}',
         message_type=msg_type,
-        file=uploaded,
+        file=uploaded,        # ✅ Cloudinary storage handles upload automatically
         file_name=uploaded.name,
     )
+    msg.refresh_from_db()
 
     Notification.objects.create(
         user=receiver,
@@ -338,18 +340,21 @@ def upload_file(request):
     )
 
     sender_profile = get_or_create_profile(request.user)
+    local_ts = timezone.localtime(msg.timestamp)
+
+    # ✅ FIX 2: get_file_url() now returns Cloudinary CDN URL (https://)
     return JsonResponse({
-        'id':           msg.id,
-        'sender_id':    request.user.id,
-        'sender':       request.user.username,
-        'sender_avatar': sender_profile.get_avatar_url(),
-        'content':      msg.content,
-        'message_type': msg.message_type,
-        'file_url':     msg.get_file_url(),
-        'file_name':    msg.file_name,
-        'is_seen':      msg.is_seen,
-        'timestamp':    msg.timestamp.strftime('%H:%M'),
-        'date':         msg.timestamp.strftime('%Y-%m-%d'),
+        'id':            msg.id,
+        'sender_id':     request.user.id,
+        'sender':        request.user.username,
+        'sender_avatar': get_avatar_url(sender_profile),
+        'content':       msg.content,
+        'message_type':  msg.message_type,
+        'file_url':      msg.get_file_url(),   # Cloudinary CDN URL
+        'file_name':     msg.file_name,
+        'is_seen':       msg.is_seen,
+        'timestamp':     local_ts.strftime('%H:%M'),
+        'date':          local_ts.strftime('%Y-%m-%d'),
     })
 
 
@@ -374,6 +379,7 @@ def profile_view(request):
                     profile.phone_number = phone
             profile.bio = bio
             if 'avatar' in request.FILES:
+                # ✅ Cloudinary automatically uploads and replaces old avatar
                 profile.avatar = request.FILES['avatar']
             profile.save()
             success = 'Profile updated!'
@@ -417,33 +423,25 @@ def invite_view(request, code):
     except UserProfile.DoesNotExist:
         return redirect('login')
 
-    # ✅ Save invite code in session
     request.session['invite_code'] = str(code)
 
-    # ✅ If admin logged in → logout
     if request.user.is_authenticated and request.user.is_superuser:
         logout(request)
         return redirect('login')
 
-    # ✅ If user already logged in → go home (we will handle friend later)
     if request.user.is_authenticated:
-        return redirect('home')
-
-    # ✅ Not logged in → go login
-    return redirect('login')
-
-    # ✅ If normal user logged in → add friend
-    if request.user != inviter:
-        if not are_friends(request.user, inviter):
+        # ✅ Auto-add as friend when visiting invite link while logged in
+        inviter = inviter_profile.user
+        if request.user != inviter and not are_friends(request.user, inviter):
             u1, u2 = (
                 (request.user, inviter)
                 if request.user.id < inviter.id
                 else (inviter, request.user)
             )
-
             Friendship.objects.get_or_create(user1=u1, user2=u2)
+        return redirect('home')
 
-    return redirect('home')
+    return redirect('login')
 
 
 @login_required
@@ -591,22 +589,17 @@ def reject_friend(request, req_id):
 def remove_friend(request, user_id):
     if request.method == 'POST':
         other_user = get_object_or_404(User, id=user_id)
-        
         friendship = Friendship.objects.filter(
             Q(user1=request.user, user2=other_user) |
             Q(user1=other_user, user2=request.user)
         )
-        
         if friendship.exists():
             friendship.delete()
             messages.success(request, f'Removed {other_user.username} from friends.')
         else:
             messages.warning(request, 'Friendship not found!')
-
-        # Redirect back to the page user came from
         next_url = request.POST.get('next', 'home')
         return redirect(next_url)
-    
     return redirect('home')
 
 
@@ -628,15 +621,17 @@ def search_users(request):
             results.append({
                 'id':        u.id,
                 'username':  u.username,
-                'avatar':    up.get_avatar_url(),
+                # ✅ FIX 1 applied: safe avatar URL
+                'avatar':    get_avatar_url(up),
                 'is_online': up.is_online,
                 'is_friend': are_friends(request.user, u),
                 'phone':     up.phone_number or '',
             })
     return JsonResponse({'results': results})
 
+
 # ════════════════════════════════════════════════════════════════
-#  MESSAGES API  — timestamps converted to local time (IST)
+#  MESSAGES API
 # ════════════════════════════════════════════════════════════════
 
 @login_required
@@ -652,15 +647,16 @@ def get_messages(request, user_id):
     data = []
     for m in msgs:
         sp = get_or_create_profile(m.sender)
-        # ✅ convert UTC → local time (Asia/Kolkata from settings.py)
         local_ts = timezone.localtime(m.timestamp)
         data.append({
             'id':            m.id,
             'sender_id':     m.sender.id,
             'sender':        m.sender.username,
-            'sender_avatar': sp.get_avatar_url(),
+            # ✅ FIX 1 applied: safe avatar URL
+            'sender_avatar': get_avatar_url(sp),
             'content':       m.content,
             'message_type':  m.message_type,
+            # ✅ FIX 2: get_file_url() returns Cloudinary CDN URL
             'file_url':      m.get_file_url(),
             'file_name':     m.file_name,
             'is_seen':       m.is_seen,
@@ -689,7 +685,7 @@ def send_message(request):
             content=content,
             message_type='text',
         )
-        msg.refresh_from_db()  # ✅ get real DB timestamp
+        msg.refresh_from_db()
 
         Notification.objects.create(
             user=receiver,
@@ -699,13 +695,13 @@ def send_message(request):
         )
 
         sender_profile = get_or_create_profile(request.user)
-        # ✅ convert UTC → local time
         local_ts = timezone.localtime(msg.timestamp)
         return JsonResponse({
             'id':            msg.id,
             'sender_id':     request.user.id,
             'sender':        request.user.username,
-            'sender_avatar': sender_profile.get_avatar_url(),
+            # ✅ FIX 1 applied
+            'sender_avatar': get_avatar_url(sender_profile),
             'content':       msg.content,
             'message_type':  msg.message_type,
             'file_url':      '',
@@ -716,58 +712,6 @@ def send_message(request):
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
-
-
-@login_required
-@require_POST
-def upload_file(request):
-    receiver_id = request.POST.get('receiver_id')
-    receiver = get_object_or_404(User, id=receiver_id)
-
-    if not request.user.is_superuser:
-        if not are_friends(request.user, receiver):
-            return JsonResponse({'error': 'Not friends'}, status=403)
-
-    uploaded = request.FILES.get('file')
-    if not uploaded:
-        return JsonResponse({'error': 'No file'}, status=400)
-
-    file_ext = uploaded.name.split('.')[-1].lower()
-    msg_type = 'image' if file_ext in ['jpg', 'jpeg', 'png', 'gif', 'webp'] else 'file'
-
-    msg = Message.objects.create(
-        sender=request.user,
-        receiver=receiver,
-        content=f'Sent a {msg_type}',
-        message_type=msg_type,
-        file=uploaded,
-        file_name=uploaded.name,
-    )
-    msg.refresh_from_db()  # ✅ get real DB timestamp
-
-    Notification.objects.create(
-        user=receiver,
-        from_user=request.user,
-        message=f'{request.user.username} sent you a {msg_type}',
-        link=f'/chat/{request.user.id}/'
-    )
-
-    sender_profile = get_or_create_profile(request.user)
-    # ✅ convert UTC → local time
-    local_ts = timezone.localtime(msg.timestamp)
-    return JsonResponse({
-        'id':            msg.id,
-        'sender_id':     request.user.id,
-        'sender':        request.user.username,
-        'sender_avatar': sender_profile.get_avatar_url(),
-        'content':       msg.content,
-        'message_type':  msg.message_type,
-        'file_url':      msg.get_file_url(),
-        'file_name':     msg.file_name,
-        'is_seen':       msg.is_seen,
-        'timestamp':     local_ts.strftime('%H:%M'),
-        'date':          local_ts.strftime('%Y-%m-%d'),
-    })
 
 
 @login_required
@@ -804,7 +748,7 @@ def online_status(request):
 @login_required
 def get_notifications(request):
     notifications = Notification.objects.filter(
-        user=request.user          # ✅ correct field name
+        user=request.user
     ).select_related('from_user', 'from_user__profile').order_by('-created_at')[:30]
 
     data = []
@@ -812,7 +756,9 @@ def get_notifications(request):
         avatar = ''
         if n.from_user:
             try:
-                avatar = n.from_user.profile.avatar.url if n.from_user.profile.avatar else ''
+                fp = get_or_create_profile(n.from_user)
+                # ✅ FIX 1 applied: safe avatar URL in notifications
+                avatar = get_avatar_url(fp)
             except Exception:
                 avatar = ''
 
@@ -820,7 +766,7 @@ def get_notifications(request):
             'id':              n.id,
             'message':         n.message,
             'preview':         '',
-            'url':             n.link or '#',       # ✅ model field is 'link'
+            'url':             n.link or '#',
             'is_read':         n.is_read,
             'timestamp':       n.created_at.strftime('%d %b, %H:%M'),
             'sender_username': n.from_user.username if n.from_user else '',
@@ -829,12 +775,13 @@ def get_notifications(request):
 
     return JsonResponse({'notifications': data})
 
+
 @login_required
 @require_POST
 def mark_notification_read(request, notif_id):
     Notification.objects.filter(
         id=notif_id,
-        user=request.user          # ✅ correct field name
+        user=request.user
     ).update(is_read=True)
     return JsonResponse({'status': 'ok'})
 
@@ -843,7 +790,7 @@ def mark_notification_read(request, notif_id):
 @require_POST
 def mark_all_notifications_read(request):
     Notification.objects.filter(
-        user=request.user,         # ✅ correct field name
+        user=request.user,
         is_read=False
     ).update(is_read=True)
     return JsonResponse({'status': 'ok'})
@@ -861,7 +808,7 @@ def set_online(request):
 
 
 # ════════════════════════════════════════════════════════════════
-#  MESSAGES — edit message
+#  MESSAGES — edit / delete
 # ════════════════════════════════════════════════════════════════
 
 @login_required
@@ -886,10 +833,6 @@ def edit_message(request, msg_id):
     return JsonResponse({'success': True, 'id': msg.id, 'content': msg.content, 'is_edited': True})
 
 
-# ════════════════════════════════════════════════════════════════
-#  ADMIN — delete message
-# ════════════════════════════════════════════════════════════════
-
 @login_required
 @require_POST
 def delete_message(request, msg_id):
@@ -910,7 +853,7 @@ def admin_dashboard(request):
     users = User.objects.exclude(
         id=request.user.id
     ).select_related('profile').annotate(
-        msg_count = Count('message')  # fallback
+        msg_count=Count('sent_messages')
     ).order_by('-msg_count')
 
     return render(request, 'chat/admin_dashboard.html', {
@@ -920,10 +863,6 @@ def admin_dashboard(request):
         'online_users':   UserProfile.objects.filter(is_online=True).count(),
     })
 
-
-# ════════════════════════════════════════════════════════════════
-#  ADMIN — delete all messages from a user
-# ════════════════════════════════════════════════════════════════
 
 @login_required
 @require_POST
@@ -936,10 +875,6 @@ def admin_delete_user_messages(request, user_id):
     ).delete()
     return JsonResponse({'success': True, 'deleted': count})
 
-
-# ════════════════════════════════════════════════════════════════
-#  ADMIN — watch any conversation between two users
-# ════════════════════════════════════════════════════════════════
 
 @login_required
 @superuser_required
@@ -955,4 +890,3 @@ def admin_chat_view(request, user1_id, user2_id):
         'user2':    user2,
         'messages': msgs,
     })
-
