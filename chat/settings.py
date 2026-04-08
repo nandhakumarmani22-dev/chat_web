@@ -7,18 +7,22 @@ SECRET_KEY = 'django-insecure-change-this-in-production-xyz123abc456'
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://*.ngrok-free.app",
-    "https://abc123.ngrok-free.app",
+ALLOWED_HOSTS = [
+    'chat-web-qxgy.onrender.com',
+    'localhost',
+    '127.0.0.1',
 ]
 
+DEBUG = False  # must be False in production
+PORT = os.environ.get('PORT', 8000)
+
 CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://192.168.1.10:8000",  # your system IP
+    'https://chat-web-qxgy.onrender.com',
 ]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
     'daphne',
