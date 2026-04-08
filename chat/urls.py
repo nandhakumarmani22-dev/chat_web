@@ -72,7 +72,7 @@ urlpatterns = [
     path('api/notifications/<int:notif_id>/read/',      views.mark_notification_read,         name='mark_notification_read'),
 
     # ── ADMIN DASHBOARD ───────────────────────────
-   path('admin_dashboard')
+   
  ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -11,7 +11,6 @@ from django.contrib import messages
 from .models import UserProfile, FriendRequest, Friendship, Message, Notification
 
 
-
 # ════════════════════════════════════════════════════════════════
 #  HELPERS
 # ════════════════════════════════════════════════════════════════
@@ -911,7 +910,7 @@ def admin_dashboard(request):
     users = User.objects.exclude(
         id=request.user.id
     ).select_related('profile').annotate(
-        msg_count=Count('sent_messages')
+        msg_count = Count('message')  # fallback
     ).order_by('-msg_count')
 
     return render(request, 'chat/admin_dashboard.html', {
@@ -956,3 +955,4 @@ def admin_chat_view(request, user1_id, user2_id):
         'user2':    user2,
         'messages': msgs,
     })
+

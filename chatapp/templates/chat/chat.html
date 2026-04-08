@@ -303,28 +303,66 @@
     background: #00a884;
   }
 
+  /* ── FIX 1: Seen icon styles ── */
+  .seen-icon {
+    font-size: 13px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .seen-icon.unseen {
+    opacity: 0.45;
+    filter: grayscale(0.4);
+  }
+
+  .seen-icon.seen {
+    opacity: 1;
+  }
+
+  /* ── FIX 2: Message time style ── */
+  .msg-meta .time {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1;
+  }
+
+  /* ── FIX 3: Avatar placeholder ── */
+  .avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00a884, #008f72);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 700;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    letter-spacing: 0;
+    user-select: none;
+  }
+
   /* Mobile: show only one panel at a time */
   @media (max-width: 768px) {
     .sidebar {
-      /* your contact list panel */
       width: 100%;
       position: absolute;
       z-index: 1;
     }
 
     .chat-window {
-      /* your chat panel */
       width: 100%;
       position: absolute;
       z-index: 0;
       display: none;
-      /* hidden by default on mobile */
     }
 
     .chat-window.active {
       display: flex;
       z-index: 2;
-      /* slides over the contact list */
     }
   }
 
@@ -426,10 +464,12 @@
   <a href="/profile/{{ other_user.username }}/">
     <div class="avatar" style="width:40px;height:40px;">
       {% if other_profile.avatar %}
-      <img src="{{ other_profile.avatar.url }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover"
-        onerror="this.style.display='none'">
+      <img src="{{ other_profile.avatar.url }}"
+        style="width:40px;height:40px;border-radius:50%;object-fit:cover;display:block;"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="avatar-placeholder" style="display:none;">{{ other_user.username|first|upper }}</div>
       {% else %}
-      <div class="avatar-placeholder" style="width:40px;height:40px;">{{ other_user.username|first|upper }}</div>
+      <div class="avatar-placeholder">{{ other_user.username|first|upper }}</div>
       {% endif %}
     </div>
   </a>
@@ -509,7 +549,6 @@
     return n.getHours().toString().padStart(2, '0') + ':' + n.getMinutes().toString().padStart(2, '0');
   }
   function getCurrentDate() {
-    // Returns YYYY-MM-DD in LOCAL time (not UTC), matching Django's localtime output
     const n = new Date();
     return n.getFullYear() + '-' +
       String(n.getMonth() + 1).padStart(2, '0') + '-' +
@@ -525,6 +564,7 @@
       .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
   }
   function formatDate(d) {
+    // d is now always YYYY-MM-DD
     const today = getCurrentDate();
     const yest = (() => {
       const y = new Date(); y.setDate(y.getDate() - 1);
@@ -534,9 +574,9 @@
     })();
     if (d === today) return 'Today';
     if (d === yest) return 'Yesterday';
-    // Format as "25 Mar 2026"
     const parts = d.split('-');
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${parseInt(parts[2])} ${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
   }
   function scrollToBottom() {
@@ -550,77 +590,73 @@
     if (dot) dot.className = connected ? 'connected' : '';
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     MESSAGE RENDERING — single source of truth
-     
-     KEY FIX: lastDate is now LOCAL to the container via a 
-     data attribute, not a global variable. This means 
-     renderMessages() fully resets it, and appendMessage() 
-     always reads the true last-rendered date.
-  ═══════════════════════════════════════════════════════════ */
+  /* ─── FIX: formatTime now handles full ISO strings ───────── */
   function formatTime(ts) {
-  if (!ts) return '';
+    if (!ts) return '';
+    // Handle plain "HH:MM" strings — convert to AM/PM
+    if (/^\d{2}:\d{2}$/.test(ts)) {
+      const [h, m] = ts.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const hour = h % 12 || 12;
+      return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+    const date = new Date(ts);
+    if (isNaN(date)) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
-  const date = new Date(ts);
-
-  if (isNaN(date)) return '';  // ✅ important
-
-  return date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-  
+  /* ─── FIX: date key is always YYYY-MM-DD ─────────────────── */
+  function dateKey(ts) {
+    if (!ts) return '';
+    // Handle plain "HH:MM" (no date info — use today)
+    if (/^\d{2}:\d{2}$/.test(ts)) return getCurrentDate();
+    const d = new Date(ts);
+    if (isNaN(d)) return '';
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
 
   function getLastRenderedDate() {
-    const container = document.getElementById('messages-container');
-    return container.dataset.lastDate || '';
+    return document.getElementById('messages-container').dataset.lastDate || '';
   }
   function setLastRenderedDate(d) {
-    const container = document.getElementById('messages-container');
-    container.dataset.lastDate = d;
+    document.getElementById('messages-container').dataset.lastDate = d;
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     RENDER MESSAGES
+  ═══════════════════════════════════════════════════════════ */
   function renderMessages(msgs) {
     const container = document.getElementById('messages-container');
     container.innerHTML = '';
-    // ✅ Reset last date on the container itself — no global variable
     container.dataset.lastDate = '';
 
-    // ✅ Sort by date+time string to guarantee order (server already orders by timestamp,
-    //    but this defends against any edge cases)
     const sorted = [...msgs].sort((a, b) => {
-  const ta = new Date(a.timestamp);
-  const tb = new Date(b.timestamp);
-
-  if (isNaN(ta) || isNaN(tb)) return 0;  // ✅ safe
-
-  return ta - tb;
-});
+      const ta = new Date(a.timestamp);
+      const tb = new Date(b.timestamp);
+      if (isNaN(ta) || isNaN(tb)) return 0;
+      return ta - tb;
+    });
 
     sorted.forEach(m => appendMessage(m, false));
     scrollToBottom();
   }
 
   function appendMessage(m, scroll = true) {
-  const container = document.getElementById('messages-container');
+    const container = document.getElementById('messages-container');
 
-  // ✅ safe date
-  const dateObj = m.timestamp ? new Date(m.timestamp) : null;
-  const isValid = dateObj && !isNaN(dateObj);
+    // ── FIX: use dateKey() so divider always gets YYYY-MM-DD ──
+    const d = dateKey(m.timestamp);
+    const lastDate = getLastRenderedDate();
 
-  const d = isValid ? dateObj.toDateString() : '';
-
-  const lastDate = getLastRenderedDate();
-
-  if (d && d !== lastDate) {
-    setLastRenderedDate(d);
-
-    const div = document.createElement('div');
-    div.className = 'date-divider';
-    div.innerHTML = `<span>${formatDate(d)}</span>`;
-    container.appendChild(div);
-  }
+    if (d && d !== lastDate) {
+      setLastRenderedDate(d);
+      const div = document.createElement('div');
+      div.className = 'date-divider';
+      div.innerHTML = `<span>${formatDate(d)}</span>`;
+      container.appendChild(div);
+    }
 
     const isSent = parseInt(m.sender_id, 10) === MY_ID;
     const row = document.createElement('div');
@@ -643,18 +679,25 @@
       inner = `<span class="msg-text">${escHtml(m.content)}</span>`;
     }
 
+    // ── FIX: seen icon always visible with proper styling ──
     const seenIcon = isSent
-      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}">${m.is_seen ? '👀' : '🙈'}</span>`
+      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}" title="${m.is_seen ? 'Seen' : 'Delivered'}">${m.is_seen ? '👀' : '🙈'}</span>`
       : '';
 
-    const editedLabel = m.is_edited ? '<span class="msg-edited-label">edited</span>' : '';
+    const editedLabel = m.is_edited
+      ? '<span class="msg-edited-label">edited</span>'
+      : '';
+
+    // ── FIX: formatTime now correctly handles ISO timestamps ──
+    const timeStr = formatTime(m.timestamp);
+
     row.innerHTML = `
       <button class="reaction-trigger" onclick="showQuickReact('${m.id}', event)" title="React">😊</button>
       <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent ? 'flex-end' : 'flex-start'}">
         <div class="bubble" oncontextmenu="showCtxMenu(event,'${m.id}',${isSent})">
           ${inner}
           <div class="msg-meta">
-            <span class="time">${formatTime(m.timestamp)}${editedLabel}</span>
+            <span class="time">${timeStr}${editedLabel}</span>
             ${seenIcon}
           </div>
         </div>
@@ -683,10 +726,8 @@
 
   /* ═══════════════════════════════════════════════════════════
      SEND MESSAGE
-     
-     KEY FIX: No more manual bubble building in sendMsg().
-     We build a proper message object and call appendMessage()
-     so date divider logic is ALWAYS in one place.
+     FIX: timestamp is now a proper ISO string so formatTime()
+     and dateKey() both work correctly on temp messages.
   ═══════════════════════════════════════════════════════════ */
   function sendMsg() {
     const inp = document.getElementById('msg-input');
@@ -696,31 +737,27 @@
     document.getElementById('emoji-picker').classList.remove('open');
 
     const tempId = 'temp_' + Date.now();
-    const today = getCurrentDate();
 
     const tempMsg = {
       id: tempId,
-      sender_id: MY_ID,  // numeric
+      sender_id: MY_ID,
       content: txt,
       message_type: 'text',
       file_url: '',
       file_name: '',
       is_seen: false,
-      timestamp: getCurrentTime(),
-      date: today,
+      is_edited: false,
+      timestamp: new Date().toISOString(),   // ✅ FIX: full ISO string, not "HH:MM"
     };
 
     appendMessage(tempMsg, true);
 
     if (ws && ws.readyState === WebSocket.OPEN) {
-
-      // 🔥 ADD temp_id here
       ws.send(JSON.stringify({
         action: 'message',
         content: txt,
-        temp_id: tempId   // ✅ IMPORTANT FIX
+        temp_id: tempId
       }));
-
     } else {
       fetch('/api/send-message/', {
         method: 'POST',
@@ -797,9 +834,7 @@
   ═══════════════════════════════════════════════════════════ */
   function connectWS() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(
-      `${wsProtocol}://${window.location.host}/ws/chat/${OTHER_ID}/`
-    );
+    ws = new WebSocket(`${wsProtocol}://${window.location.host}/ws/chat/${OTHER_ID}/`);
 
     ws.onopen = () => {
       console.log("Connected ✅");
@@ -810,12 +845,10 @@
       const data = JSON.parse(e.data);
 
       if (data.type === 'message') {
-        // Remove temp bubble (for sender — before real message arrives)
         if (data.temp_id) {
           const tmp = document.getElementById('msg-' + data.temp_id);
           if (tmp) tmp.remove();
         }
-        // Only render if not already in DOM
         if (!document.getElementById('msg-' + data.id)) {
           appendMessage(data);
         }
@@ -825,9 +858,11 @@
         indicator.innerHTML = data.is_typing ? 'typing...' : '';
       }
       else if (data.type === 'seen') {
+        // Update all unseen icons to seen
         document.querySelectorAll('.seen-icon.unseen').forEach(el => {
           el.className = 'seen-icon seen';
           el.textContent = '👀';
+          el.title = 'Seen';
         });
       }
       else if (data.type === 'message_deleted') {
@@ -860,17 +895,17 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     EMOJI PICKER — unchanged from your original
+     EMOJI PICKER
   ═══════════════════════════════════════════════════════════ */
   const EMOJI_CATEGORIES = [
     { id: 'recent', icon: '🕐', label: 'Recently used', emojis: [] },
-    { id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👋', '🤚', '🖐', '✋', '🖖', '👌', '✌️', '🤞', '👍', '👎', '✊', '👏', '🙌', '🙏'] },
-    { id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐴', '🦄', '🐝', '🦋', '🐌', '🐞', '🐢', '🦎', '🐍', '🦈', '🐬', '🐳', '🐘', '🦒', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🍃', '🍂', '🍁', '🌺', '🌸', '🌼', '🌻', '🌈', '⚡', '❄️', '🌊', '💧', '🔥'] },
-    { id: 'food', icon: '🍔', label: 'Food & drink', emojis: ['🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥦', '🥕', '🌽', '🍞', '🥚', '🍳', '🥞', '🍔', '🍟', '🍕', '🌮', '🌯', '🍝', '🍜', '🍣', '🍱', '🧁', '🍰', '🎂', '🍭', '🍬', '🍫', '🍩', '🍪', '☕', '🍵', '🍺', '🥂', '🍷', '🧋'] },
-    { id: 'travel', icon: '✈️', label: 'Travel & places', emojis: ['🚗', '🚕', '🚙', '🚌', '🏎', '🚓', '🚑', '🚒', '🛻', '🚲', '🛴', '⛵', '🚤', '✈️', '🛩', '🚁', '🛸', '🚀', '⛰', '🏔', '🗻', '🏕', '🏖', '🏠', '🏡', '🏢', '🏥', '🏦', '🏨', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '🗼', '🗽', '⛲', '🌃', '🏙', '🌄', '🌅', '🌆', '🌇', '🌉'] },
-    { id: 'objects', icon: '💡', label: 'Objects', emojis: ['📱', '💻', '⌨️', '🖥', '💾', '💿', '📷', '📸', '📹', '🎥', '📞', '☎️', '📺', '📻', '⏰', '🕰', '⌛', '⏳', '📡', '🔋', '💡', '🔦', '💵', '💳', '💎', '⚖️', '🧰', '🔧', '🔨', '⚒', '🔩', '🧲', '🔪', '⚔️', '🔮', '🔭', '🔬', '💊', '🩺', '💉', '🧬', '👓', '🕶', '🥽', '👑', '👒', '🎩', '🧢', '💄', '💍'] },
-    { id: 'symbols', icon: '❤️', label: 'Symbols', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💯', '💢', '❗', '❕', '❓', '❔', '‼️', '⁉️', '⚠️', '♻️', '✅', '❎', '💤', '⬆️', '⬇️', '➡️', '⬅️', '↩️', '↪️', '🎵', '🎶', '➕', '➖', '➗', '✖️', '✔️', '☑️'] },
-    { id: 'activity', icon: '⚽', label: 'Activities', emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '⛳', '🎣', '🎽', '🎿', '🛷', '🎯', '🎮', '🎰', '🎲', '♟', '🧩', '🎭', '🎨', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎬', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🤸', '🏋️', '🏊', '🧘', '🚴', '🏄'] },
+    { id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👋','🤚','🖐','✋','🖖','👌','✌️','🤞','👍','👎','✊','👏','🙌','🙏'] },
+    { id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🦆','🦅','🦉','🦇','🐺','🐴','🦄','🐝','🦋','🐌','🐞','🐢','🦎','🐍','🦈','🐬','🐳','🐘','🦒','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🌺','🌸','🌼','🌻','🌈','⚡','❄️','🌊','💧','🔥'] },
+    { id: 'food', icon: '🍔', label: 'Food & drink', emojis: ['🍎','🍊','🍋','🍇','🍓','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🥑','🍆','🥦','🥕','🌽','🍞','🥚','🍳','🥞','🍔','🍟','🍕','🌮','🌯','🍝','🍜','🍣','🍱','🧁','🍰','🎂','🍭','🍬','🍫','🍩','🍪','☕','🍵','🍺','🥂','🍷','🧋'] },
+    { id: 'travel', icon: '✈️', label: 'Travel & places', emojis: ['🚗','🚕','🚙','🚌','🏎','🚓','🚑','🚒','🛻','🚲','🛴','⛵','🚤','✈️','🛩','🚁','🛸','🚀','⛰','🏔','🗻','🏕','🏖','🏠','🏡','🏢','🏥','🏦','🏨','🏪','🏫','🏬','🏭','🏯','🏰','🗼','🗽','⛲','🌃','🏙','🌄','🌅','🌆','🌇','🌉'] },
+    { id: 'objects', icon: '💡', label: 'Objects', emojis: ['📱','💻','⌨️','🖥','💾','💿','📷','📸','📹','🎥','📞','☎️','📺','📻','⏰','🕰','⌛','⏳','📡','🔋','💡','🔦','💵','💳','💎','⚖️','🧰','🔧','🔨','⚒','🔩','🧲','🔪','⚔️','🔮','🔭','🔬','💊','🩺','💉','🧬','👓','🕶','🥽','👑','👒','🎩','🧢','💄','💍'] },
+    { id: 'symbols', icon: '❤️', label: 'Symbols', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💯','💢','❗','❕','❓','❔','‼️','⁉️','⚠️','♻️','✅','❎','💤','⬆️','⬇️','➡️','⬅️','↩️','↪️','🎵','🎶','➕','➖','➗','✖️','✔️','☑️'] },
+    { id: 'activity', icon: '⚽', label: 'Activities', emojis: ['⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','⛳','🎣','🎽','🎿','🛷','🎯','🎮','🎰','🎲','♟','🧩','🎭','🎨','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🏆','🥇','🥈','🥉','🏅','🎖','🤸','🏋️','🏊','🧘','🚴','🏄'] },
   ];
   const QUICK_REACT = ['❤️', '😂', '😮', '😢', '😡', '👍', '👎', '🙏'];
 
@@ -913,10 +948,14 @@
       else { const em = document.createElement('div'); em.className = 'ep-empty'; em.textContent = 'No emoji found'; grid.appendChild(em); }
       body.appendChild(grid); return;
     }
-    const cats = activeCat === 'recent' ? [EMOJI_CATEGORIES[0]] : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
+    const cats = activeCat === 'recent'
+      ? [EMOJI_CATEGORIES[0]]
+      : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
     cats.forEach(cat => {
       if (!cat.emojis.length) return;
-      const label = document.createElement('div'); label.className = 'ep-section-label'; label.textContent = cat.label; body.appendChild(label);
+      const label = document.createElement('div');
+      label.className = 'ep-section-label'; label.textContent = cat.label;
+      body.appendChild(label);
       const grid = document.createElement('div'); grid.className = 'ep-grid';
       cat.emojis.forEach(e => grid.appendChild(makeEmojiEl(e)));
       body.appendChild(grid);
@@ -930,11 +969,22 @@
   function toggleEmojiPicker(e) {
     e.stopPropagation();
     const picker = document.getElementById('emoji-picker');
-    if (picker.classList.contains('open')) { picker.classList.remove('open'); }
-    else { buildEmojiPicker(); renderEmojiGrid(); picker.classList.add('open'); document.getElementById('ep-search').value = ''; document.getElementById('ep-search').focus(); }
+    if (picker.classList.contains('open')) {
+      picker.classList.remove('open');
+    } else {
+      buildEmojiPicker(); renderEmojiGrid();
+      picker.classList.add('open');
+      document.getElementById('ep-search').value = '';
+      document.getElementById('ep-search').focus();
+    }
   }
-  document.getElementById('ep-search').addEventListener('input', function () { renderEmojiGrid(this.value.trim()); });
-  document.addEventListener('click', e => { if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn')) document.getElementById('emoji-picker').classList.remove('open'); });
+  document.getElementById('ep-search').addEventListener('input', function () {
+    renderEmojiGrid(this.value.trim());
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn'))
+      document.getElementById('emoji-picker').classList.remove('open');
+  });
   function insertEmoji(emoji) {
     const inp = document.getElementById('msg-input');
     const start = inp.selectionStart, end = inp.selectionEnd;
@@ -964,8 +1014,13 @@
     if (!msgReactions[msgId]) msgReactions[msgId] = {};
     if (!myReactions[msgId]) myReactions[msgId] = new Set();
     const mine = myReactions[msgId];
-    if (mine.has(emoji)) { mine.delete(emoji); msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1); }
-    else { mine.add(emoji); msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1; }
+    if (mine.has(emoji)) {
+      mine.delete(emoji);
+      msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1);
+    } else {
+      mine.add(emoji);
+      msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1;
+    }
     addRecent(emoji); renderReactions(msgId); closeAllQuickReact();
   }
   function showQuickReact(msgId, e) {
@@ -974,14 +1029,17 @@
     let qr = row.querySelector('.quick-reactions');
     if (!qr) {
       qr = document.createElement('div'); qr.className = 'quick-reactions';
-      qr.innerHTML = QUICK_REACT.map(em => `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`).join('');
+      qr.innerHTML = QUICK_REACT.map(em =>
+        `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`
+      ).join('');
       row.appendChild(qr);
     }
     qr.classList.add('show');
   }
-  function closeAllQuickReact() { document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show')); }
+  function closeAllQuickReact() {
+    document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show'));
+  }
   document.addEventListener('click', closeAllQuickReact);
-
 
   /* ─── CONTEXT MENU ────────────────────────────────────────── */
   let ctxMsgId = null, ctxIsMine = false;
@@ -1032,11 +1090,9 @@
     const newContent = ta ? ta.value.trim() : '';
     if (!newContent) return;
 
-    // Optimistic update
     const row = document.getElementById('msg-' + msgId);
     const msgText = row ? row.querySelector('.msg-text') : null;
 
-    // Send via WS if open, else HTTP
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'edit_message', msg_id: msgId, content: newContent }));
     } else {
@@ -1049,10 +1105,8 @@
       if (d.error) { alert(d.error); return; }
     }
 
-    // Apply locally immediately
     if (msgText) {
       msgText.innerHTML = escHtml(newContent);
-      // Add/update edited label
       const meta = row.querySelector('.msg-meta .time');
       if (meta && !meta.querySelector('.msg-edited-label')) {
         meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>');
