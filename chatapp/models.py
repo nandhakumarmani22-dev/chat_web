@@ -72,6 +72,7 @@ class Message(models.Model):
     file = models.FileField(upload_to='chat_files/', null=True, blank=True)
     file_name = models.CharField(max_length=255, blank=True)
     is_seen = models.BooleanField(default=False)
+    is_edited = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -96,6 +97,7 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     link = models.CharField(max_length=255, blank=True)
+     
 
     class Meta:
         ordering = ['-created_at']

@@ -11,14 +11,14 @@ from django.contrib import messages
 from .models import UserProfile, FriendRequest, Friendship, Message, Notification
 
 
+
 # ════════════════════════════════════════════════════════════════
 #  HELPERS
 # ════════════════════════════════════════════════════════════════
 
-def get_or_create_profile(user):
-    profile, _ = UserProfile.objects.get_or_create(user=user)
-    return profile
 
+def get_or_create_profile(user):
+    return UserProfile.objects.get_or_create(user=user)[0]
 
 def are_friends(user1, user2):
     return Friendship.objects.filter(
@@ -113,20 +113,27 @@ def _build_friend_data_objects(user):
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('home')
-    invite_code = request.GET.get('invite', '')
+
     error = ''
+
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
+
         user = authenticate(request, username=username, password=password)
+
         if user:
-            login(request, user)
-            get_or_create_profile(user)
-            next_url = request.POST.get('next') or request.GET.get('next') or '/'
-            return redirect(next_url)
+            # ❌ BLOCK ADMIN HERE
+            if user.is_superuser or user.is_staff:
+                error = "Admin must login via admin panel!"
+            else:
+                login(request, user)
+                get_or_create_profile(user)
+                return redirect('home')
         else:
             error = 'Invalid username or password.'
-    return render(request, 'registration/login.html', {'error': error, 'invite_code': invite_code})
+
+    return render(request, 'registration/login.html', {'error': error})
 
 
 def logout_view(request):
@@ -142,8 +149,10 @@ def logout_view(request):
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('home')
+
     invite_code = request.GET.get('invite', '')
     error = ''
+
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
@@ -153,37 +162,46 @@ def register_view(request):
 
         if not username or not password:
             error = 'Username and password are required.'
+
         elif password != password2:
             error = 'Passwords do not match.'
+
         elif User.objects.filter(username=username).exists():
             error = 'Username already taken.'
+
         elif phone and UserProfile.objects.filter(phone_number=phone).exists():
             error = 'Phone number already registered.'
+
         else:
+            # ✅ Create user
             user = User.objects.create_user(username=username, password=password)
+
+            # ✅ Ensure normal user
+            user.is_staff = False
+            user.is_superuser = False
+            user.save()
+
+            # ✅ Create profile
             profile = get_or_create_profile(user)
+
             if phone:
                 profile.phone_number = phone
                 profile.save()
-            login(request, user)
-            if invite_code:
-                try:
-                    inviter_profile = UserProfile.objects.get(invite_code=invite_code)
-                    inviter = inviter_profile.user
-                    if not are_friends(user, inviter):
-                        u1, u2 = (user, inviter) if user.id < inviter.id else (inviter, user)
-                        Friendship.objects.get_or_create(user1=u1, user2=u2)
-                        Notification.objects.create(
-                            user=inviter,
-                            from_user=user,
-                            message=f'{username} joined via your invite link and is now your friend!',
-                            link=f'/chat/{user.id}/'
-                        )
-                except UserProfile.DoesNotExist:
-                    pass
-            return redirect('home')
-    return render(request, 'registration/register.html', {'error': error, 'invite_code': invite_code})
 
+            # ✅ SAVE invite in session (IMPORTANT)
+            if invite_code:
+                request.session['invite_code'] = invite_code
+
+            # ❌ REMOVE THIS (very important)
+            # login(request, user)
+
+            # ✅ Go to login page
+            return redirect('login')
+
+    return render(request, 'registration/register.html', {
+        'error': error,
+        'invite_code': invite_code
+    })
 
 # ════════════════════════════════════════════════════════════════
 #  HOME  (superuser sees all users, normal user sees friends only)
@@ -281,55 +299,6 @@ def chat_view(request, user_id):
         'notif_count':   notif_count,
         'is_superuser':  request.user.is_superuser,
     })
-
-
-# ════════════════════════════════════════════════════════════════
-#  SEND MESSAGE  (superuser can message anyone)
-# ════════════════════════════════════════════════════════════════
-
-@login_required
-@require_POST
-def send_message(request):
-    try:
-        receiver_id = request.POST.get('receiver_id')
-        content = request.POST.get('content', '').strip()
-        receiver = get_object_or_404(User, id=receiver_id)
-
-        # superuser bypasses friendship check
-        if not request.user.is_superuser:
-            if not are_friends(request.user, receiver):
-                return JsonResponse({'error': 'Not friends'}, status=403)
-
-        msg = Message.objects.create(
-            sender=request.user,
-            receiver=receiver,
-            content=content,
-            message_type='text',
-        )
-
-        Notification.objects.create(
-            user=receiver,
-            from_user=request.user,
-            message=f'New message from {request.user.username}',
-            link=f'/chat/{request.user.id}/'
-        )
-
-        sender_profile = get_or_create_profile(request.user)
-        return JsonResponse({
-            'id':           msg.id,
-            'sender_id':    request.user.id,
-            'sender':       request.user.username,
-            'sender_avatar': sender_profile.get_avatar_url(),
-            'content':      msg.content,
-            'message_type': msg.message_type,
-            'file_url':     '',
-            'file_name':    '',
-            'is_seen':      msg.is_seen,
-            'timestamp':    msg.timestamp.strftime('%H:%M'),
-            'date':         msg.timestamp.strftime('%Y-%m-%d'),
-        })
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -443,37 +412,39 @@ def user_profile(request, username):
 #  FRIENDS
 # ════════════════════════════════════════════════════════════════
 
-@login_required
 def invite_view(request, code):
     try:
         inviter_profile = UserProfile.objects.get(invite_code=code)
-        inviter = inviter_profile.user
     except UserProfile.DoesNotExist:
-        return render(request, 'chat/invite_invalid.html')
+        return redirect('login')
 
-    if not request.user.is_authenticated:
-        return redirect(f"/register/?invite={code}")
+    # ✅ Save invite code in session
+    request.session['invite_code'] = str(code)
 
-    if request.user == inviter:
-        messages.error(request, "You cannot invite yourself.")
-        return redirect("home")
+    # ✅ If admin logged in → logout
+    if request.user.is_authenticated and request.user.is_superuser:
+        logout(request)
+        return redirect('login')
 
-    if not are_friends(request.user, inviter):
-        u1, u2 = (
-            (request.user, inviter)
-            if request.user.id < inviter.id
-            else (inviter, request.user)
-        )
-        Friendship.objects.get_or_create(user1=u1, user2=u2)
-        Notification.objects.create(
-            user=inviter,
-            from_user=request.user,
-            message=f"{request.user.username} added you via invite link!",
-            link=f"/chat/{request.user.id}/",
-        )
-        messages.success(request, f"You are now friends with {inviter.username}!")
+    # ✅ If user already logged in → go home (we will handle friend later)
+    if request.user.is_authenticated:
+        return redirect('home')
 
-    return redirect("home")
+    # ✅ Not logged in → go login
+    return redirect('login')
+
+    # ✅ If normal user logged in → add friend
+    if request.user != inviter:
+        if not are_friends(request.user, inviter):
+            u1, u2 = (
+                (request.user, inviter)
+                if request.user.id < inviter.id
+                else (inviter, request.user)
+            )
+
+            Friendship.objects.get_or_create(user1=u1, user2=u2)
+
+    return redirect('home')
 
 
 @login_required
@@ -665,9 +636,8 @@ def search_users(request):
             })
     return JsonResponse({'results': results})
 
-
 # ════════════════════════════════════════════════════════════════
-#  MESSAGES API
+#  MESSAGES API  — timestamps converted to local time (IST)
 # ════════════════════════════════════════════════════════════════
 
 @login_required
@@ -683,20 +653,122 @@ def get_messages(request, user_id):
     data = []
     for m in msgs:
         sp = get_or_create_profile(m.sender)
+        # ✅ convert UTC → local time (Asia/Kolkata from settings.py)
+        local_ts = timezone.localtime(m.timestamp)
         data.append({
-            'id':           m.id,
-            'sender_id':    m.sender.id,
-            'sender':       m.sender.username,
+            'id':            m.id,
+            'sender_id':     m.sender.id,
+            'sender':        m.sender.username,
             'sender_avatar': sp.get_avatar_url(),
-            'content':      m.content,
-            'message_type': m.message_type,
-            'file_url':     m.get_file_url(),
-            'file_name':    m.file_name,
-            'is_seen':      m.is_seen,
-            'timestamp':    m.timestamp.strftime('%H:%M'),
-            'date':         m.timestamp.strftime('%Y-%m-%d'),
+            'content':       m.content,
+            'message_type':  m.message_type,
+            'file_url':      m.get_file_url(),
+            'file_name':     m.file_name,
+            'is_seen':       m.is_seen,
+            'is_edited':     m.is_edited,
+            'timestamp':     local_ts.strftime('%H:%M'),
+            'date':          local_ts.strftime('%Y-%m-%d'),
         })
     return JsonResponse({'messages': data})
+
+
+@login_required
+@require_POST
+def send_message(request):
+    try:
+        receiver_id = request.POST.get('receiver_id')
+        content = request.POST.get('content', '').strip()
+        receiver = get_object_or_404(User, id=receiver_id)
+
+        if not request.user.is_superuser:
+            if not are_friends(request.user, receiver):
+                return JsonResponse({'error': 'Not friends'}, status=403)
+
+        msg = Message.objects.create(
+            sender=request.user,
+            receiver=receiver,
+            content=content,
+            message_type='text',
+        )
+        msg.refresh_from_db()  # ✅ get real DB timestamp
+
+        Notification.objects.create(
+            user=receiver,
+            from_user=request.user,
+            message=f'New message from {request.user.username}',
+            link=f'/chat/{request.user.id}/'
+        )
+
+        sender_profile = get_or_create_profile(request.user)
+        # ✅ convert UTC → local time
+        local_ts = timezone.localtime(msg.timestamp)
+        return JsonResponse({
+            'id':            msg.id,
+            'sender_id':     request.user.id,
+            'sender':        request.user.username,
+            'sender_avatar': sender_profile.get_avatar_url(),
+            'content':       msg.content,
+            'message_type':  msg.message_type,
+            'file_url':      '',
+            'file_name':     '',
+            'is_seen':       msg.is_seen,
+            'timestamp':     local_ts.strftime('%H:%M'),
+            'date':          local_ts.strftime('%Y-%m-%d'),
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def upload_file(request):
+    receiver_id = request.POST.get('receiver_id')
+    receiver = get_object_or_404(User, id=receiver_id)
+
+    if not request.user.is_superuser:
+        if not are_friends(request.user, receiver):
+            return JsonResponse({'error': 'Not friends'}, status=403)
+
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'No file'}, status=400)
+
+    file_ext = uploaded.name.split('.')[-1].lower()
+    msg_type = 'image' if file_ext in ['jpg', 'jpeg', 'png', 'gif', 'webp'] else 'file'
+
+    msg = Message.objects.create(
+        sender=request.user,
+        receiver=receiver,
+        content=f'Sent a {msg_type}',
+        message_type=msg_type,
+        file=uploaded,
+        file_name=uploaded.name,
+    )
+    msg.refresh_from_db()  # ✅ get real DB timestamp
+
+    Notification.objects.create(
+        user=receiver,
+        from_user=request.user,
+        message=f'{request.user.username} sent you a {msg_type}',
+        link=f'/chat/{request.user.id}/'
+    )
+
+    sender_profile = get_or_create_profile(request.user)
+    # ✅ convert UTC → local time
+    local_ts = timezone.localtime(msg.timestamp)
+    return JsonResponse({
+        'id':            msg.id,
+        'sender_id':     request.user.id,
+        'sender':        request.user.username,
+        'sender_avatar': sender_profile.get_avatar_url(),
+        'content':       msg.content,
+        'message_type':  msg.message_type,
+        'file_url':      msg.get_file_url(),
+        'file_name':     msg.file_name,
+        'is_seen':       msg.is_seen,
+        'timestamp':     local_ts.strftime('%H:%M'),
+        'date':          local_ts.strftime('%Y-%m-%d'),
+    })
 
 
 @login_required
@@ -787,6 +859,32 @@ def set_online(request):
         profile.last_seen = timezone.now()
     profile.save()
     return JsonResponse({'status': 'ok'})
+
+
+# ════════════════════════════════════════════════════════════════
+#  MESSAGES — edit message
+# ════════════════════════════════════════════════════════════════
+
+@login_required
+@require_POST
+def edit_message(request, msg_id):
+    import json as _json
+    msg = get_object_or_404(Message, id=msg_id)
+    if msg.sender != request.user:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    if msg.message_type != 'text':
+        return JsonResponse({'error': 'Only text messages can be edited'}, status=400)
+    try:
+        body = _json.loads(request.body)
+        new_content = body.get('content', '').strip()
+    except Exception:
+        new_content = request.POST.get('content', '').strip()
+    if not new_content:
+        return JsonResponse({'error': 'Content cannot be empty'}, status=400)
+    msg.content = new_content
+    msg.is_edited = True
+    msg.save()
+    return JsonResponse({'success': True, 'id': msg.id, 'content': msg.content, 'is_edited': True})
 
 
 # ════════════════════════════════════════════════════════════════

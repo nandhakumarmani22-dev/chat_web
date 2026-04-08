@@ -57,7 +57,9 @@ urlpatterns = [
     path('api/send-message/',               views.send_message,               name='send_message'),
     path('api/upload-file/',                views.upload_file,                name='upload_file'),
     path('api/mark-seen/<int:user_id>/',    views.mark_seen,                  name='mark_seen'),
+    
     path('api/delete-message/<int:msg_id>/',views.delete_message,             name='delete_message'),
+    path('api/edit-message/<int:msg_id>/', views.edit_message,               name='edit_message'),
 
     # ── ONLINE STATUS ─────────────────────────────
     path('api/online-status/',              views.online_status,              name='online_status'),
@@ -70,9 +72,7 @@ urlpatterns = [
     path('api/notifications/<int:notif_id>/read/',      views.mark_notification_read,         name='mark_notification_read'),
 
     # ── ADMIN DASHBOARD ───────────────────────────
-    path('admin-dashboard/',views.admin_dashboard,name='admin_dashboard'),
-    path('admin-dashboard/chat/<int:user1_id>/<int:user2_id>/', views.admin_chat_view,name='admin_chat_view'),
-    path('api/admin/delete-messages/<int:user_id>/',  views.admin_delete_user_messages,name='admin_delete_user_messages'),
-
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) \
-  + static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0] if settings.STATICFILES_DIRS else settings.STATIC_ROOT)
+   path('admin_dashboard')
+ ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

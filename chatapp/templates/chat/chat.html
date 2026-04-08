@@ -4,7 +4,6 @@
 {% block extra_css %}
 {{ block.super }}
 <style>
-  /* ── EMOJI PICKER ─────────────────────────────────────────── */
   #emoji-picker {
     position: absolute;
     bottom: 64px;
@@ -25,7 +24,6 @@
     display: flex;
   }
 
-  /* search bar */
   #ep-search-wrap {
     padding: 10px 10px 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
@@ -40,7 +38,6 @@
     color: #e9edef;
     font-size: 13px;
     outline: none;
-    background-image: var(--chat-pattern, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M0 0h60v60H0z' fill='%230b141a'/%3E%3Cpath d='M30 10c-11 0-20 9-20 20s9 20 20 20 20-9 20-20-9-20-20-20zm0 36c-8.8 0-16-7.2-16-16S21.2 14 30 14s16 7.2 16 16-7.2 16-16 16z' fill='rgba(255,255,255,.015)'/%3E%3C/svg%3E"));
     background-repeat: no-repeat;
     background-position: 10px center;
   }
@@ -49,7 +46,6 @@
     color: #667781;
   }
 
-  /* category tabs */
   #ep-tabs {
     display: flex;
     gap: 2px;
@@ -83,7 +79,6 @@
     border-bottom-color: #00a884;
   }
 
-  /* emoji grid */
   #ep-body {
     height: 220px;
     overflow-y: auto;
@@ -140,46 +135,51 @@
     grid-column: 1/-1;
   }
 
-  /* 1. Bubble must shrink to content, not stretch */
   .bubble {
     position: relative;
     padding: 7px 10px 22px 10px;
-    /* bottom: 22px reserves space */
     min-width: 90px;
     width: fit-content;
   }
 
-
-  /* 2. Pad text so it never overlaps timestamp */
   .bubble .msg-text {
     padding-right: 52px;
-    /* ← add this */
     display: block;
   }
 
-  /* 3. Float timestamp to bottom-right of bubble */
   .bubble .msg-meta {
     position: absolute;
     bottom: 5px;
     right: 8px;
     display: flex;
     flex-direction: row;
-    /* ← THIS was your bug, it was column */
     align-items: center;
     gap: 4px;
     white-space: nowrap;
   }
 
-  /* 4. Clearfix so bubble height wraps the float */
   .bubble::after {
     content: '';
     display: block;
     clear: both;
   }
 
-  /* ── REACTION POPUP (hover on bubble) ────────────────────── */
   .msg-row {
     position: relative;
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 2px;
+    width: 100%;
+  }
+
+  .msg-row.sent {
+    justify-content: flex-end;
+    flex-direction: row;
+  }
+
+  .msg-row.recv {
+    justify-content: flex-start;
+    flex-direction: row;
   }
 
   .reaction-trigger {
@@ -250,7 +250,6 @@
     background: rgba(255, 255, 255, 0.08);
   }
 
-  /* reactions displayed on message */
   .msg-reactions {
     display: flex;
     flex-wrap: wrap;
@@ -288,6 +287,134 @@
     border-color: rgba(0, 168, 132, 0.5);
     background: rgba(0, 168, 132, 0.08);
   }
+
+  /* ── WS status dot ── */
+  #ws-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f00;
+    display: inline-block;
+    margin-left: 6px;
+    transition: background .3s;
+  }
+
+  #ws-status.connected {
+    background: #00a884;
+  }
+
+  /* Mobile: show only one panel at a time */
+  @media (max-width: 768px) {
+    .sidebar {
+      /* your contact list panel */
+      width: 100%;
+      position: absolute;
+      z-index: 1;
+    }
+
+    .chat-window {
+      /* your chat panel */
+      width: 100%;
+      position: absolute;
+      z-index: 0;
+      display: none;
+      /* hidden by default on mobile */
+    }
+
+    .chat-window.active {
+      display: flex;
+      z-index: 2;
+      /* slides over the contact list */
+    }
+  }
+
+  /* ── Context Menu ── */
+  #msg-context-menu {
+    position: fixed;
+    background: #1e2a32;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 6px 0;
+    min-width: 160px;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    display: none;
+  }
+
+  #msg-context-menu.show {
+    display: block;
+  }
+
+  .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    font-size: 14px;
+    color: #e9edef;
+    cursor: pointer;
+    transition: background .12s;
+  }
+
+  .ctx-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .ctx-item.danger {
+    color: #f15c5c;
+  }
+
+  .ctx-item i {
+    width: 16px;
+    text-align: center;
+  }
+
+  /* ── Edit input overlay ── */
+  .edit-input-wrap {
+    display: none;
+    margin-top: 4px;
+  }
+
+  .edit-input-wrap.show {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .edit-input-wrap textarea {
+    flex: 1;
+    background: #2a3942;
+    border: 1px solid rgba(0, 168, 132, 0.5);
+    border-radius: 8px;
+    color: #e9edef;
+    padding: 6px 10px;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    max-height: 100px;
+    font-family: inherit;
+  }
+
+  .edit-input-wrap button {
+    background: #00a884;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .edit-input-wrap button.cancel-edit {
+    background: #374248;
+  }
+
+  .msg-edited-label {
+    font-size: 10px;
+    color: #8696a0;
+    margin-left: 4px;
+    font-style: italic;
+  }
 </style>
 {% endblock %}
 
@@ -307,21 +434,18 @@
     </div>
   </a>
   <div class="info">
-    <h2>{{ other_user.username }}</h2>
+    <h2>{{ other_user.username }} <span id="ws-status" title="Connection status"></span></h2>
     <div class="status {% if other_profile.is_online %}online-text{% endif %}" id="chat-status">
       {% if other_profile.is_online %}Online{% else %}Last seen {{ other_profile.last_seen|date:"H:i" }}{% endif %}
     </div>
   </div>
-  <div style="display:flex; gap:4px">
+  <div style="display:flex;gap:4px">
     <button class="icon-btn" onclick="scrollToBottom()" title="Scroll to bottom">
       <i class="fas fa-arrow-down"></i>
     </button>
-
     <a href="/profile/{{ other_user.username }}/" class="icon-btn" title="View Profile">
       <i class="fas fa-info-circle"></i>
     </a>
-
-    <!-- REMOVE FRIEND FORM -->
     <form method="POST" action="/friends/remove/{{ other_user.id }}/" style="margin:0">
       {% csrf_token %}
       <button type="submit" class="icon-btn" title="Remove friend"
@@ -337,10 +461,7 @@
 </div>
 <div class="typing-indicator" id="typing-indicator"></div>
 
-<!-- INPUT AREA -->
 <div class="chat-input" style="position:relative;">
-
-  <!-- EMOJI PICKER PANEL -->
   <div id="emoji-picker">
     <div id="ep-search-wrap">
       <input id="ep-search" type="text" placeholder="Search emoji…" autocomplete="off">
@@ -348,12 +469,9 @@
     <div id="ep-tabs"></div>
     <div id="ep-body"></div>
   </div>
-
-  <!-- EMOJI TOGGLE BUTTON -->
   <button class="attach-btn" id="emoji-toggle-btn" title="Emoji" onclick="toggleEmojiPicker(event)">
     <i class="fas fa-smile" style="font-size:20px;color:#8696a0"></i>
   </button>
-
   <label class="attach-btn" title="Send file">
     <i class="fas fa-paperclip"></i>
     <input type="file" id="file-input" style="display:none" accept="*/*" onchange="sendFile()">
@@ -366,135 +484,407 @@
     <textarea id="msg-input" placeholder="Type a message" rows="1" onkeydown="handleKey(event)"
       oninput="onTyping()"></textarea>
   </div>
-  <button class="send-btn" onclick="sendMsg()">
+  <button type="button" class="send-btn" onclick="sendMsg()">
     <i class="fas fa-paper-plane"></i>
   </button>
 </div>
+
+<div id="msg-context-menu">
+  <div class="ctx-item" id="ctx-copy" onclick="ctxCopy()"><i class="fas fa-copy"></i> Copy</div>
+  <div class="ctx-item" id="ctx-edit" onclick="ctxEdit()"><i class="fas fa-pencil-alt"></i> Edit</div>
+  <div class="ctx-item danger" id="ctx-delete" onclick="ctxDelete()"><i class="fas fa-trash"></i> Delete</div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  const OTHER_ID = "{{ other_user.id }}";
-  const MY_ID = "{{ request.user.id }}";
-  let ws, typingTimer, lastDate = '';
+  const OTHER_ID = parseInt("{{ other_user.id }}".trim(), 10);
+  const MY_ID = parseInt("{{ request.user.id }}".trim(), 10);
+  let ws, typingTimer;
+
+  /* ─── HELPERS ─────────────────────────────────────────────── */
+  function getCurrentTime() {
+    const n = new Date();
+    return n.getHours().toString().padStart(2, '0') + ':' + n.getMinutes().toString().padStart(2, '0');
+  }
+  function getCurrentDate() {
+    // Returns YYYY-MM-DD in LOCAL time (not UTC), matching Django's localtime output
+    const n = new Date();
+    return n.getFullYear() + '-' +
+      String(n.getMonth() + 1).padStart(2, '0') + '-' +
+      String(n.getDate()).padStart(2, '0');
+  }
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+  }
+  function formatDate(d) {
+    const today = getCurrentDate();
+    const yest = (() => {
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      return y.getFullYear() + '-' +
+        String(y.getMonth() + 1).padStart(2, '0') + '-' +
+        String(y.getDate()).padStart(2, '0');
+    })();
+    if (d === today) return 'Today';
+    if (d === yest) return 'Yesterday';
+    // Format as "25 Mar 2026"
+    const parts = d.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${parseInt(parts[2])} ${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
+  }
+  function scrollToBottom() {
+    const area = document.getElementById('messages-area');
+    area.scrollTop = area.scrollHeight;
+  }
+
+  /* ─── WS STATUS DOT ───────────────────────────────────────── */
+  function setWsStatus(connected) {
+    const dot = document.getElementById('ws-status');
+    if (dot) dot.className = connected ? 'connected' : '';
+  }
 
   /* ═══════════════════════════════════════════════════════════
-     EMOJI DATA  — categories + emojis
+     MESSAGE RENDERING — single source of truth
+     
+     KEY FIX: lastDate is now LOCAL to the container via a 
+     data attribute, not a global variable. This means 
+     renderMessages() fully resets it, and appendMessage() 
+     always reads the true last-rendered date.
+  ═══════════════════════════════════════════════════════════ */
+  function formatTime(ts) {
+  if (!ts) return '';
+
+  const date = new Date(ts);
+
+  if (isNaN(date)) return '';  // ✅ important
+
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+  
+
+  function getLastRenderedDate() {
+    const container = document.getElementById('messages-container');
+    return container.dataset.lastDate || '';
+  }
+  function setLastRenderedDate(d) {
+    const container = document.getElementById('messages-container');
+    container.dataset.lastDate = d;
+  }
+
+  function renderMessages(msgs) {
+    const container = document.getElementById('messages-container');
+    container.innerHTML = '';
+    // ✅ Reset last date on the container itself — no global variable
+    container.dataset.lastDate = '';
+
+    // ✅ Sort by date+time string to guarantee order (server already orders by timestamp,
+    //    but this defends against any edge cases)
+    const sorted = [...msgs].sort((a, b) => {
+  const ta = new Date(a.timestamp);
+  const tb = new Date(b.timestamp);
+
+  if (isNaN(ta) || isNaN(tb)) return 0;  // ✅ safe
+
+  return ta - tb;
+});
+
+    sorted.forEach(m => appendMessage(m, false));
+    scrollToBottom();
+  }
+
+  function appendMessage(m, scroll = true) {
+  const container = document.getElementById('messages-container');
+
+  // ✅ safe date
+  const dateObj = m.timestamp ? new Date(m.timestamp) : null;
+  const isValid = dateObj && !isNaN(dateObj);
+
+  const d = isValid ? dateObj.toDateString() : '';
+
+  const lastDate = getLastRenderedDate();
+
+  if (d && d !== lastDate) {
+    setLastRenderedDate(d);
+
+    const div = document.createElement('div');
+    div.className = 'date-divider';
+    div.innerHTML = `<span>${formatDate(d)}</span>`;
+    container.appendChild(div);
+  }
+
+    const isSent = parseInt(m.sender_id, 10) === MY_ID;
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (isSent ? 'sent' : 'recv');
+    row.id = 'msg-' + m.id;
+
+    let inner = '';
+    if (m.message_type === 'image' && m.file_url) {
+      inner = `<img src="${m.file_url}" class="img-msg"
+                onclick="window.open('${m.file_url}','_blank')" alt="image">`;
+    } else if (m.message_type === 'file' && m.file_url) {
+      inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
+        <i class="fas fa-file-alt"></i>
+        <div class="file-info">
+          <div class="fname">${escHtml(m.file_name || 'File')}</div>
+          <div class="fsize">Download</div>
+        </div>
+      </a>`;
+    } else {
+      inner = `<span class="msg-text">${escHtml(m.content)}</span>`;
+    }
+
+    const seenIcon = isSent
+      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}">${m.is_seen ? '👀' : '🙈'}</span>`
+      : '';
+
+    const editedLabel = m.is_edited ? '<span class="msg-edited-label">edited</span>' : '';
+    row.innerHTML = `
+      <button class="reaction-trigger" onclick="showQuickReact('${m.id}', event)" title="React">😊</button>
+      <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent ? 'flex-end' : 'flex-start'}">
+        <div class="bubble" oncontextmenu="showCtxMenu(event,'${m.id}',${isSent})">
+          ${inner}
+          <div class="msg-meta">
+            <span class="time">${formatTime(m.timestamp)}${editedLabel}</span>
+            ${seenIcon}
+          </div>
+        </div>
+        <div class="edit-input-wrap" id="edit-wrap-${m.id}">
+          <textarea id="edit-ta-${m.id}" rows="1"></textarea>
+          <button onclick="submitEdit('${m.id}')"><i class="fas fa-check"></i></button>
+          <button class="cancel-edit" onclick="cancelEdit('${m.id}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="msg-reactions"></div>
+      </div>`;
+
+    container.appendChild(row);
+    if (scroll) scrollToBottom();
+  }
+
+  /* ─── LOAD HISTORY ────────────────────────────────────────── */
+  async function loadMessages() {
+    try {
+      const r = await fetch(`/api/messages/${OTHER_ID}/`);
+      const d = await r.json();
+      renderMessages(d.messages);
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SEND MESSAGE
+     
+     KEY FIX: No more manual bubble building in sendMsg().
+     We build a proper message object and call appendMessage()
+     so date divider logic is ALWAYS in one place.
+  ═══════════════════════════════════════════════════════════ */
+  function sendMsg() {
+    const inp = document.getElementById('msg-input');
+    const txt = inp.value.trim();
+    if (!txt) return;
+
+    document.getElementById('emoji-picker').classList.remove('open');
+
+    const tempId = 'temp_' + Date.now();
+    const today = getCurrentDate();
+
+    const tempMsg = {
+      id: tempId,
+      sender_id: MY_ID,  // numeric
+      content: txt,
+      message_type: 'text',
+      file_url: '',
+      file_name: '',
+      is_seen: false,
+      timestamp: getCurrentTime(),
+      date: today,
+    };
+
+    appendMessage(tempMsg, true);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+
+      // 🔥 ADD temp_id here
+      ws.send(JSON.stringify({
+        action: 'message',
+        content: txt,
+        temp_id: tempId   // ✅ IMPORTANT FIX
+      }));
+
+    } else {
+      fetch('/api/send-message/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}`
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (!d.error) {
+            const tempEl = document.getElementById('msg-' + tempId);
+            if (tempEl) tempEl.remove();
+            appendMessage(d, false);
+          }
+        })
+        .catch(err => console.error('Send failed:', err));
+    }
+
+    inp.value = '';
+    inp.style.height = 'auto';
+  }
+
+  /* ─── FILE / IMAGE UPLOAD ─────────────────────────────────── */
+  async function sendFile() {
+    const f = document.getElementById('file-input').files[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append('file', f); fd.append('receiver_id', OTHER_ID);
+    const r = await fetch('/api/upload-file/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: fd
+    });
+    const d = await r.json();
+    if (!d.error) appendMessage(d);
+    document.getElementById('file-input').value = '';
+  }
+
+  async function sendImage() {
+    const f = document.getElementById('image-input').files[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append('file', f); fd.append('receiver_id', OTHER_ID);
+    const r = await fetch('/api/upload-file/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: fd
+    });
+    const d = await r.json();
+    if (!d.error) appendMessage(d);
+    document.getElementById('image-input').value = '';
+  }
+
+  /* ─── INPUT EVENTS ────────────────────────────────────────── */
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  }
+  function onTyping() {
+    const ta = document.getElementById('msg-input');
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() =>
+        ws.send(JSON.stringify({ action: 'typing', is_typing: false })), 2000);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     WEBSOCKET
+  ═══════════════════════════════════════════════════════════ */
+  function connectWS() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(
+      `${wsProtocol}://${window.location.host}/ws/chat/${OTHER_ID}/`
+    );
+
+    ws.onopen = () => {
+      console.log("Connected ✅");
+      setWsStatus(true);
+    };
+
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+
+      if (data.type === 'message') {
+        // Remove temp bubble (for sender — before real message arrives)
+        if (data.temp_id) {
+          const tmp = document.getElementById('msg-' + data.temp_id);
+          if (tmp) tmp.remove();
+        }
+        // Only render if not already in DOM
+        if (!document.getElementById('msg-' + data.id)) {
+          appendMessage(data);
+        }
+      }
+      else if (data.type === 'typing') {
+        const indicator = document.getElementById('typing-indicator');
+        indicator.innerHTML = data.is_typing ? 'typing...' : '';
+      }
+      else if (data.type === 'seen') {
+        document.querySelectorAll('.seen-icon.unseen').forEach(el => {
+          el.className = 'seen-icon seen';
+          el.textContent = '👀';
+        });
+      }
+      else if (data.type === 'message_deleted') {
+        applyDelete(data.msg_id);
+      }
+      else if (data.type === 'message_edited') {
+        const row = document.getElementById('msg-' + data.msg_id);
+        const msgText = row ? row.querySelector('.msg-text') : null;
+        if (msgText) {
+          msgText.innerHTML = escHtml(data.content);
+          const meta = row.querySelector('.msg-meta .time');
+          if (meta && !meta.querySelector('.msg-edited-label')) {
+            meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>');
+          }
+        }
+        cancelEdit(data.msg_id);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("Disconnected ❌");
+      setWsStatus(false);
+      setTimeout(connectWS, 3000);
+    };
+
+    ws.onerror = () => {
+      console.log("Error ❌");
+      setWsStatus(false);
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     EMOJI PICKER — unchanged from your original
   ═══════════════════════════════════════════════════════════ */
   const EMOJI_CATEGORIES = [
     { id: 'recent', icon: '🕐', label: 'Recently used', emojis: [] },
-    {
-      id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: [
-        '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
-        '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
-        '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
-        '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁',
-        '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
-        '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹',
-        '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾',
-        '👋', '🤚', '🖐', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
-        '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏',
-        '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🫀', '🫁', '🧠', '🦷', '🦴', '👀',
-        '👁', '👅', '👄', '🫦', '👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '👩', '🧓', '👴', '👵',
-      ]
-    },
-    {
-      id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: [
-        '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈',
-        '🙉', '🙊', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛',
-        '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷', '🦂', '🐢', '🦎', '🐍', '🐲', '🦕', '🦖', '🦈', '🐬',
-        '🐳', '🐋', '🦭', '🐊', '🦅', '🦁', '🐘', '🦏', '🦛', '🦒', '🦓', '🦬', '🐃', '🐂', '🐄', '🦌',
-        '🐏', '🐑', '🐐', '🦙', '🦘', '🦥', '🦦', '🦨', '🦡', '🐇', '🦫', '🦔', '🐿', '🌵', '🎄', '🌲',
-        '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🌾', '🌺', '🌸', '🌼',
-        '🌻', '🌞', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌙', '🌟',
-        '⭐', '🌠', '🌌', '⛅', '🌤', '🌈', '⚡', '❄️', '🌊', '💧', '🔥', '🌍', '🌎', '🌏',
-      ]
-    },
-    {
-      id: 'food', icon: '🍔', label: 'Food & drink', emojis: [
-        '🍎', '🍊', '🍋', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
-        '🥦', '🥬', '🥒', '🌶', '🫑', '🌽', '🥕', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨',
-        '🧀', '🥚', '🍳', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕', '🫓', '🥙', '🧆',
-        '🌮', '🌯', '🫔', '🥗', '🥘', '🫕', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙',
-        '🍚', '🍘', '🍥', '🥮', '🍢', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰',
-        '🥜', '🍯', '🧃', '🥤', '🧋', '☕', '🫖', '🍵', '🧉', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹',
-      ]
-    },
-    {
-      id: 'travel', icon: '✈️', label: 'Travel & places', emojis: [
-        '🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍',
-        '🛺', '🚲', '🛴', '🛹', '🛼', '🚏', '🛣', '🛤', '⛽', '🛞', '🚨', '🚥', '🚦', '🚧', '⚓', '🛟',
-        '⛵', '🛶', '🚤', '🛳', '⛴', '🛥', '🚢', '✈️', '🛩', '🛫', '🛬', '🪂', '💺', '🚁', '🛸', '🚀',
-        '🛰', '⛰', '🏔', '🗻', '🏕', '🏖', '🏜', '🏝', '🏞', '🏟', '🏛', '🏗', '🧱', '🏘', '🏚', '🏠',
-        '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '💒', '🗼',
-        '🗽', '⛪', '🕌', '🛕', '🕍', '⛩', '🕋', '⛲', '⛺', '🌁', '🌃', '🏙', '🌄', '🌅', '🌆', '🌇',
-        '🌉', '🌌', '🎠', '🎡', '🎢', '💈', '🎪', '🌐', '🗺', '🧭', '🏔', '❤️‍🔥',
-      ]
-    },
-    {
-      id: 'objects', icon: '💡', label: 'Objects', emojis: [
-        '⌚', '📱', '💻', '⌨️', '🖥', '🖨', '🖱', '🖲', '💾', '💿', '📀', '📷', '📸', '📹', '🎥', '📽',
-        '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🧭', '⏱', '⏲', '⏰', '🕰', '⌛', '⏳', '📡', '🔋',
-        '💡', '🔦', '🕯', '🪔', '🧯', '🛢', '💵', '💴', '💶', '💷', '💸', '💳', '🪙', '💎', '⚖️', '🧰',
-        '🔧', '🪛', '🔨', '⚒', '🛠', '⛏', '⛏', '🪚', '🔩', '🪤', '🧲', '🔫', '💣', '🪓', '🔪', '🗡',
-        '⚔️', '🛡', '🚬', '⚰️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳', '💊', '🩺', '🩹',
-        '🩼', '🩻', '💉', '🩸', '🧬', '🦠', '🧫', '🧪', '🌡', '🧹', '🧺', '🧻', '🚽', '🚰', '🚿', '🛁',
-        '🪠', '🧼', '🫧', '🪥', '🧽', '🧴', '🪒', '🪮', '🧷', '🪡', '🧵', '🧶', '🪢', '👓', '🕶', '🥽',
-        '🌂', '☂️', '🧵', '🪡', '🧶', '🪢', '👑', '👒', '🎩', '🧢', '⛑', '📿', '💄', '💍', '💎',
-      ]
-    },
-    {
-      id: 'symbols', icon: '❤️', label: 'Symbols', emojis: [
-        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
-        '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈',
-        '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️',
-        '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹',
-        '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️',
-        '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️',
-        '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧',
-        '🚾', '♿', '🅿️', '🛗', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '⚧', '🚻', '🚮',
-        '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣',
-        '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '▶️', '⏸', '⏹',
-        '⏺', '⏭', '⏮', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️',
-        '↙️', '↖️', '↕️', '↔️', '↩️', '↪️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔃', '🎵', '🎶', '➕', '➖',
-        '➗', '✖️', '♾', '💲', '💱', '™️', '©️', '®️', '〰️', '➰', '➿', '🔚', '🔙', '🔛', '🔝', '🔜',
-        '✔️', '☑️', '🔘', '🔲', '🔳', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦',
-        '🟪', '⬛', '⬜', '🔶', '🔷', '🔸', '🔹', '🔺', '🔻', '💠', '🔘', '🔲',
-      ]
-    },
-    {
-      id: 'activity', icon: '⚽', label: 'Activities', emojis: [
-        '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍',
-        '🏏', '🪃', '🥅', '⛳', '🪁', '🛝', '🎣', '🤿', '🎽', '🎿', '🛷', '🥌', '🎯', '🪃', '🎱', '🎮',
-        '🎰', '🎲', '♟', '🧩', '🪅', '🎭', '🎨', '🖼', '🎪', '🤹', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘',
-        '🎷', '🎺', '🎸', '🪕', '🎻', '🎬', '🎤', '🎭', '🎪', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🏵',
-        '🎗', '🎫', '🎟', '🎪', '🤸', '⛹️', '🤺', '🏇', '⛷', '🏂', '🪂', '🏋️', '🤼', '🤽', '🤾', '🤺',
-        '🏊', '🧘', '🛀', '🛌', '🧗', '🚴', '🏄', '🧜', '🧝', '🧙', '🧚', '🧛', '🧟', '🎅', '🤶', '🦸',
-      ]
-    },
+    { id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👋', '🤚', '🖐', '✋', '🖖', '👌', '✌️', '🤞', '👍', '👎', '✊', '👏', '🙌', '🙏'] },
+    { id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐴', '🦄', '🐝', '🦋', '🐌', '🐞', '🐢', '🦎', '🐍', '🦈', '🐬', '🐳', '🐘', '🦒', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🍃', '🍂', '🍁', '🌺', '🌸', '🌼', '🌻', '🌈', '⚡', '❄️', '🌊', '💧', '🔥'] },
+    { id: 'food', icon: '🍔', label: 'Food & drink', emojis: ['🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥦', '🥕', '🌽', '🍞', '🥚', '🍳', '🥞', '🍔', '🍟', '🍕', '🌮', '🌯', '🍝', '🍜', '🍣', '🍱', '🧁', '🍰', '🎂', '🍭', '🍬', '🍫', '🍩', '🍪', '☕', '🍵', '🍺', '🥂', '🍷', '🧋'] },
+    { id: 'travel', icon: '✈️', label: 'Travel & places', emojis: ['🚗', '🚕', '🚙', '🚌', '🏎', '🚓', '🚑', '🚒', '🛻', '🚲', '🛴', '⛵', '🚤', '✈️', '🛩', '🚁', '🛸', '🚀', '⛰', '🏔', '🗻', '🏕', '🏖', '🏠', '🏡', '🏢', '🏥', '🏦', '🏨', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '🗼', '🗽', '⛲', '🌃', '🏙', '🌄', '🌅', '🌆', '🌇', '🌉'] },
+    { id: 'objects', icon: '💡', label: 'Objects', emojis: ['📱', '💻', '⌨️', '🖥', '💾', '💿', '📷', '📸', '📹', '🎥', '📞', '☎️', '📺', '📻', '⏰', '🕰', '⌛', '⏳', '📡', '🔋', '💡', '🔦', '💵', '💳', '💎', '⚖️', '🧰', '🔧', '🔨', '⚒', '🔩', '🧲', '🔪', '⚔️', '🔮', '🔭', '🔬', '💊', '🩺', '💉', '🧬', '👓', '🕶', '🥽', '👑', '👒', '🎩', '🧢', '💄', '💍'] },
+    { id: 'symbols', icon: '❤️', label: 'Symbols', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💯', '💢', '❗', '❕', '❓', '❔', '‼️', '⁉️', '⚠️', '♻️', '✅', '❎', '💤', '⬆️', '⬇️', '➡️', '⬅️', '↩️', '↪️', '🎵', '🎶', '➕', '➖', '➗', '✖️', '✔️', '☑️'] },
+    { id: 'activity', icon: '⚽', label: 'Activities', emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '⛳', '🎣', '🎽', '🎿', '🛷', '🎯', '🎮', '🎰', '🎲', '♟', '🧩', '🎭', '🎨', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎬', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🤸', '🏋️', '🏊', '🧘', '🚴', '🏄'] },
   ];
-
   const QUICK_REACT = ['❤️', '😂', '😮', '😢', '😡', '👍', '👎', '🙏'];
 
-  /* ═══════════════════════════════════════════════════════════
-     RECENT EMOJIS  (localStorage)
-  ═══════════════════════════════════════════════════════════ */
   function getRecent() {
     try { return JSON.parse(localStorage.getItem('ep_recent') || '[]'); } catch (e) { return []; }
   }
   function addRecent(emoji) {
     let r = getRecent().filter(e => e !== emoji);
-    r.unshift(emoji);
-    r = r.slice(0, 24);
+    r.unshift(emoji); r = r.slice(0, 24);
     try { localStorage.setItem('ep_recent', JSON.stringify(r)); } catch (e) { }
     EMOJI_CATEGORIES[0].emojis = r;
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     BUILD EMOJI PICKER
-  ═══════════════════════════════════════════════════════════ */
   let activeCat = 'smileys';
-
   function buildEmojiPicker() {
     EMOJI_CATEGORIES[0].emojis = getRecent();
     const tabsEl = document.getElementById('ep-tabs');
@@ -503,121 +893,62 @@
       if (cat.id === 'recent' && !cat.emojis.length) return;
       const t = document.createElement('div');
       t.className = 'ep-tab' + (cat.id === activeCat ? ' active' : '');
-      t.textContent = cat.icon;
-      t.title = cat.label;
-      t.dataset.cat = cat.id;
+      t.textContent = cat.icon; t.title = cat.label; t.dataset.cat = cat.id;
       t.onclick = () => { activeCat = cat.id; renderEmojiGrid(); renderTabs(); };
       tabsEl.appendChild(t);
     });
   }
-
   function renderTabs() {
-    document.querySelectorAll('.ep-tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.cat === activeCat);
-    });
+    document.querySelectorAll('.ep-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.cat === activeCat));
   }
-
   function renderEmojiGrid(filter = '') {
     const body = document.getElementById('ep-body');
     body.innerHTML = '';
     if (filter) {
       const all = EMOJI_CATEGORIES.slice(1).flatMap(c => c.emojis);
-      const results = all.filter(e => emojiMatchesSearch(e, filter));
-      const grid = document.createElement('div');
-      grid.className = 'ep-grid';
-      if (results.length) {
-        results.forEach(e => grid.appendChild(makeEmojiEl(e)));
-      } else {
-        const empty = document.createElement('div');
-        empty.className = 'ep-empty';
-        empty.textContent = 'No emoji found';
-        grid.appendChild(empty);
-      }
-      body.appendChild(grid);
-      return;
+      const results = all.filter(e => e.includes(filter));
+      const grid = document.createElement('div'); grid.className = 'ep-grid';
+      if (results.length) { results.forEach(e => grid.appendChild(makeEmojiEl(e))); }
+      else { const em = document.createElement('div'); em.className = 'ep-empty'; em.textContent = 'No emoji found'; grid.appendChild(em); }
+      body.appendChild(grid); return;
     }
-    const cats = activeCat === 'recent'
-      ? [EMOJI_CATEGORIES[0]]
-      : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
+    const cats = activeCat === 'recent' ? [EMOJI_CATEGORIES[0]] : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
     cats.forEach(cat => {
       if (!cat.emojis.length) return;
-      const label = document.createElement('div');
-      label.className = 'ep-section-label';
-      label.textContent = cat.label;
-      body.appendChild(label);
-      const grid = document.createElement('div');
-      grid.className = 'ep-grid';
+      const label = document.createElement('div'); label.className = 'ep-section-label'; label.textContent = cat.label; body.appendChild(label);
+      const grid = document.createElement('div'); grid.className = 'ep-grid';
       cat.emojis.forEach(e => grid.appendChild(makeEmojiEl(e)));
       body.appendChild(grid);
     });
   }
-
   function makeEmojiEl(emoji) {
     const el = document.createElement('div');
-    el.className = 'ep-emoji';
-    el.textContent = emoji;
-    el.title = emoji;
-    el.onclick = () => insertEmoji(emoji);
-    return el;
+    el.className = 'ep-emoji'; el.textContent = emoji; el.title = emoji;
+    el.onclick = () => insertEmoji(emoji); return el;
   }
-
-  function emojiMatchesSearch(emoji, q) {
-    return emoji.toLowerCase().includes(q.toLowerCase());
-  }
-
   function toggleEmojiPicker(e) {
     e.stopPropagation();
     const picker = document.getElementById('emoji-picker');
-    if (picker.classList.contains('open')) {
-      picker.classList.remove('open');
-    } else {
-      buildEmojiPicker();
-      renderEmojiGrid();
-      picker.classList.add('open');
-      document.getElementById('ep-search').value = '';
-      document.getElementById('ep-search').focus();
-    }
+    if (picker.classList.contains('open')) { picker.classList.remove('open'); }
+    else { buildEmojiPicker(); renderEmojiGrid(); picker.classList.add('open'); document.getElementById('ep-search').value = ''; document.getElementById('ep-search').focus(); }
   }
-
-  document.getElementById('ep-search').addEventListener('input', function () {
-    renderEmojiGrid(this.value.trim());
-  });
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn')) {
-      document.getElementById('emoji-picker').classList.remove('open');
-    }
-  });
-
+  document.getElementById('ep-search').addEventListener('input', function () { renderEmojiGrid(this.value.trim()); });
+  document.addEventListener('click', e => { if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn')) document.getElementById('emoji-picker').classList.remove('open'); });
   function insertEmoji(emoji) {
     const inp = document.getElementById('msg-input');
-    const start = inp.selectionStart;
-    const end = inp.selectionEnd;
+    const start = inp.selectionStart, end = inp.selectionEnd;
     inp.value = inp.value.slice(0, start) + emoji + inp.value.slice(end);
-    const pos = start + emoji.length;
-    inp.setSelectionRange(pos, pos);
-    inp.focus();
-    addRecent(emoji);
-    onTyping();
+    inp.setSelectionRange(start + emoji.length, start + emoji.length);
+    inp.focus(); addRecent(emoji); onTyping();
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     MESSAGE REACTIONS
-  ═══════════════════════════════════════════════════════════ */
-  // msgReactions: { msgId: { emoji: count, ... } }
-  const msgReactions = {};
-  // myReactions: { msgId: Set of emojis I reacted with }
-  const myReactions = {};
-
-  function getReactionsEl(msgId) {
-    return document.querySelector(`#msg-${msgId} .msg-reactions`);
-  }
-
+  /* ─── REACTIONS ───────────────────────────────────────────── */
+  const msgReactions = {}, myReactions = {};
+  function getReactionsEl(msgId) { return document.querySelector(`#msg-${msgId} .msg-reactions`); }
   function renderReactions(msgId) {
-    const el = getReactionsEl(msgId);
-    if (!el) return;
-    const rx = msgReactions[msgId] || {};
-    const mine = myReactions[msgId] || new Set();
+    const el = getReactionsEl(msgId); if (!el) return;
+    const rx = msgReactions[msgId] || {}, mine = myReactions[msgId] || new Set();
     el.innerHTML = '';
     Object.entries(rx).forEach(([emoji, count]) => {
       if (!count) return;
@@ -629,239 +960,140 @@
       el.appendChild(chip);
     });
   }
-
   function toggleReaction(msgId, emoji) {
     if (!msgReactions[msgId]) msgReactions[msgId] = {};
     if (!myReactions[msgId]) myReactions[msgId] = new Set();
     const mine = myReactions[msgId];
-    if (mine.has(emoji)) {
-      mine.delete(emoji);
-      msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1);
-    } else {
-      mine.add(emoji);
-      msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1;
-    }
-    addRecent(emoji);
-    renderReactions(msgId);
-    closeAllQuickReact();
+    if (mine.has(emoji)) { mine.delete(emoji); msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1); }
+    else { mine.add(emoji); msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1; }
+    addRecent(emoji); renderReactions(msgId); closeAllQuickReact();
   }
-
   function showQuickReact(msgId, e) {
-    e.stopPropagation();
-    closeAllQuickReact();
-    const row = document.getElementById('msg-' + msgId);
-    if (!row) return;
+    e.stopPropagation(); closeAllQuickReact();
+    const row = document.getElementById('msg-' + msgId); if (!row) return;
     let qr = row.querySelector('.quick-reactions');
     if (!qr) {
-      qr = document.createElement('div');
-      qr.className = 'quick-reactions';
-      qr.innerHTML = QUICK_REACT.map(em =>
-        `<span class="qr-emoji" title="${em}" onclick="toggleReaction(${msgId},'${em}')">${em}</span>`
-      ).join('');
+      qr = document.createElement('div'); qr.className = 'quick-reactions';
+      qr.innerHTML = QUICK_REACT.map(em => `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`).join('');
       row.appendChild(qr);
     }
     qr.classList.add('show');
   }
-  function closeAllQuickReact() {
-    document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show'));
-  }
+  function closeAllQuickReact() { document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show')); }
   document.addEventListener('click', closeAllQuickReact);
 
-  /* ═══════════════════════════════════════════════════════════
-     MESSAGES
-  ═══════════════════════════════════════════════════════════ */
-  function renderMessages(msgs) {
-    const container = document.getElementById('messages-container');
-    container.innerHTML = '';
-    lastDate = '';
-    msgs.forEach(m => appendMessage(m, false));
-    scrollToBottom();
+
+  /* ─── CONTEXT MENU ────────────────────────────────────────── */
+  let ctxMsgId = null, ctxIsMine = false;
+
+  function showCtxMenu(e, msgId, isMine) {
+    e.preventDefault();
+    ctxMsgId = msgId; ctxIsMine = isMine;
+    const menu = document.getElementById('msg-context-menu');
+    document.getElementById('ctx-edit').style.display = isMine ? 'flex' : 'none';
+    document.getElementById('ctx-delete').style.display = isMine ? 'flex' : 'none';
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 120) + 'px';
+    menu.classList.add('show');
+  }
+  document.addEventListener('click', () => {
+    document.getElementById('msg-context-menu').classList.remove('show');
+  });
+
+  function ctxCopy() {
+    const row = document.getElementById('msg-' + ctxMsgId);
+    const txt = row ? row.querySelector('.msg-text') : null;
+    if (txt) navigator.clipboard.writeText(txt.innerText).catch(() => { });
+    document.getElementById('msg-context-menu').classList.remove('show');
   }
 
-  function appendMessage(m, scroll = true) {
-    const container = document.getElementById('messages-container');
-    const d = m.date || '';
-    if (d && d !== lastDate) {
-      lastDate = d;
-      const div = document.createElement('div');
-      div.className = 'date-divider';
-      div.innerHTML = `<span>${formatDate(d)}</span>`;
-      container.appendChild(div);
-    }
-    const isSent = m.sender_id == MY_ID;
-    const row = document.createElement('div');
-    row.className = 'msg-row ' + (isSent ? 'sent' : 'recv');
-    row.id = 'msg-' + m.id;
-
-    let inner = '';
-    if (m.message_type === 'image' && m.file_url) {
-      inner = `<img src="${m.file_url}" class="img-msg" onclick="window.open('${m.file_url}','_blank')" alt="image">`;
-    } else if (m.message_type === 'file' && m.file_url) {
-      inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
-      <i class="fas fa-file-alt"></i>
-      <div class="file-info"><div class="fname">${escHtml(m.file_name || 'File')}</div><div class="fsize">Download</div></div>
-    </a>`;
-    } else {
-      inner = `<span>${escHtml(m.content)}</span>`;
-    }
-
-    const seenIcon = isSent
-      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}">👁</span>`
-      : '';
-
-    row.innerHTML = `
-    <button class="reaction-trigger" onclick="showQuickReact(${m.id},event)" title="React">😊</button>
-    <div>
-      <div class="bubble">
-        ${inner}
-        <div class="meta"><span class="time">${m.timestamp}</span>${seenIcon}</div>
-      </div>
-      <div class="msg-reactions"></div>
-    </div>`;
-
-    container.appendChild(row);
-    if (scroll) scrollToBottom();
-  }
-
-  function escHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
-  }
-  function formatDate(d) {
-    const today = new Date().toISOString().slice(0, 10);
-    const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (d === today) return 'Today';
-    if (d === yest) return 'Yesterday';
-    return d;
-  }
-  function scrollToBottom() {
-    const area = document.getElementById('messages-area');
-    area.scrollTop = area.scrollHeight;
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     SEND / UPLOAD
-  ═══════════════════════════════════════════════════════════ */
-  async function loadMessages() {
-    const r = await fetch(`/api/messages/${OTHER_ID}/`);
-    const d = await r.json();
-    renderMessages(d.messages);
-  }
-
-  function sendMsg() {
-    const inp = document.getElementById('msg-input');
-    const txt = inp.value.trim();
-    if (!txt) return;
-    document.getElementById('emoji-picker').classList.remove('open');
-    if (ws && ws.readyState === 1) {
-      ws.send(JSON.stringify({ action: 'message', content: txt }));
-    } else {
-      fetch('/api/send-message/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
-        body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}`
-      }).then(r => r.json()).then(d => { if (!d.error) appendMessage(d); });
-    }
-    inp.value = '';
-    inp.style.height = 'auto';
-  }
-
-  async function sendFile() {
-    const f = document.getElementById('file-input').files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
-    const r = await fetch('/api/upload-file/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd });
-    const d = await r.json(); if (!d.error) appendMessage(d);
-    document.getElementById('file-input').value = '';
-  }
-
-  async function sendImage() {
-    const f = document.getElementById('image-input').files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
-    const r = await fetch('/api/upload-file/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd });
-    const d = await r.json(); if (!d.error) appendMessage(d);
-    document.getElementById('image-input').value = '';
-  }
-
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-  }
-
-  function onTyping() {
-    const ta = document.getElementById('msg-input');
+  function ctxEdit() {
+    document.getElementById('msg-context-menu').classList.remove('show');
+    const row = document.getElementById('msg-' + ctxMsgId);
+    if (!row) return;
+    const msgText = row.querySelector('.msg-text');
+    if (!msgText) return;
+    const wrap = document.getElementById('edit-wrap-' + ctxMsgId);
+    const ta = document.getElementById('edit-ta-' + ctxMsgId);
+    ta.value = msgText.innerText;
+    wrap.classList.add('show');
+    ta.focus();
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-    if (ws && ws.readyState === 1) {
-      ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => ws.send(JSON.stringify({ action: 'typing', is_typing: false })), 2000);
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  function cancelEdit(msgId) {
+    const wrap = document.getElementById('edit-wrap-' + msgId);
+    if (wrap) wrap.classList.remove('show');
+  }
+
+  async function submitEdit(msgId) {
+    const ta = document.getElementById('edit-ta-' + msgId);
+    const newContent = ta ? ta.value.trim() : '';
+    if (!newContent) return;
+
+    // Optimistic update
+    const row = document.getElementById('msg-' + msgId);
+    const msgText = row ? row.querySelector('.msg-text') : null;
+
+    // Send via WS if open, else HTTP
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'edit_message', msg_id: msgId, content: newContent }));
+    } else {
+      const r = await fetch(`/api/edit-message/${msgId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ content: newContent })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+    }
+
+    // Apply locally immediately
+    if (msgText) {
+      msgText.innerHTML = escHtml(newContent);
+      // Add/update edited label
+      const meta = row.querySelector('.msg-meta .time');
+      if (meta && !meta.querySelector('.msg-edited-label')) {
+        meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>');
+      }
+    }
+    cancelEdit(msgId);
+  }
+
+  async function ctxDelete() {
+    document.getElementById('msg-context-menu').classList.remove('show');
+    if (!confirm('Delete this message?')) return;
+    const msgId = ctxMsgId;
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'delete_message', msg_id: msgId }));
+    } else {
+      const r = await fetch(`/api/delete-message/${msgId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      applyDelete(msgId);
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     WEBSOCKET
-  ═══════════════════════════════════════════════════════════ */
-  function connectWS() {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${location.host}/ws/chat/${OTHER_ID}/`);
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'message') {
-        appendMessage(data);
-        if (data.sender_id != MY_ID) ws.send(JSON.stringify({ action: 'mark_seen' }));
-      } else if (data.type === 'typing') {
-        const ti = document.getElementById('typing-indicator');
-        ti.innerHTML = data.is_typing
-          ? `<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span> typing...` : '';
-      } else if (data.type === 'seen') {
-        document.querySelectorAll('.seen-icon.unseen').forEach(el => {
-          el.className = 'seen-icon seen'; el.textContent = '👁';
-        });
-      } else if (data.type === 'online_status' && data.user_id == OTHER_ID) {
-        const st = document.getElementById('chat-status');
-        if (st) { st.textContent = data.is_online ? 'Online' : 'Offline'; st.className = 'status' + (data.is_online ? ' online-text' : ''); }
-        const dot = document.getElementById(`dot-${OTHER_ID}`);
-        if (dot) dot.className = 'status-dot' + (data.is_online ? ' online' : '');
-      }
-    };
-    ws.onclose = () => setTimeout(connectWS, 3000);
+  function applyDelete(msgId) {
+    const row = document.getElementById('msg-' + msgId);
+    if (!row) return;
+    const bubble = row.querySelector('.bubble');
+    if (bubble) {
+      bubble.innerHTML = '<span style="color:#8696a0;font-style:italic;font-size:13px"><i class="fas fa-ban" style="margin-right:4px"></i>Message deleted</span>';
+    }
+    const editWrap = document.getElementById('edit-wrap-' + msgId);
+    if (editWrap) editWrap.remove();
+    const reactionBtn = row.querySelector('.reaction-trigger');
+    if (reactionBtn) reactionBtn.style.display = 'none';
   }
 
-  function getCookie(name) {
-    let v = null;
-    document.cookie.split(';').forEach(c => {
-      const [k, val] = c.trim().split('=');
-      if (k === name) v = decodeURIComponent(val);
-    });
-    return v;
-  }
-
-  /* init */
+  /* ─── INIT ────────────────────────────────────────────────── */
   loadMessages();
   connectWS();
-  const fi = document.getElementById('friend-{{ other_user.id }}');
-  if (fi) fi.classList.add('active');
-
-  /* ══════════════════════════════════════
-   BACKGROUND — apply saved bg to chat
-══════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function() {
-  const saved = localStorage.getItem('chat_bg');
-  if (!saved) return;
-
-  const targets = [
-    document.getElementById('messages-area'),
-    document.querySelector('.messages-area'),
-    document.querySelector('.chat-panel'),
-  ];
-
-  targets.forEach(el => {
-    if (!el) return;
-    el.style.setProperty('background-image',    `url('${saved}')`, 'important');
-    el.style.setProperty('background-size',     'cover',           'important');
-    el.style.setProperty('background-position', 'center',          'important');
-    el.style.setProperty('background-repeat',   'no-repeat',       'important');
-  });
-});
 </script>
 {% endblock %}

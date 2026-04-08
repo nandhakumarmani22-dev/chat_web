@@ -21,6 +21,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +43,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'chat.urls'
+ASGI_APPLICATION = 'chat.asgi.application'
 
 TEMPLATES = [
     {
@@ -59,7 +61,6 @@ TEMPLATES = [
     },
 ]
 
-ASGI_APPLICATION = 'chat.asgi.application'
 
 DATABASES = {
     'default': {
@@ -95,3 +96,6 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 APPEND_SLASH = True  # already True by default
+
+TIME_ZONE = 'Asia/Kolkata'
+USE_TZ = True

@@ -1,193 +1,81 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from django.utils.html import format_html
-from django.urls import path
-from django.shortcuts import render
-from django.utils import timezone
 from .models import UserProfile, FriendRequest, Friendship, Message, Notification
 
-
-# ═══════════════════════════════════════════════════════════
-#  UserProfile inline — shown inside User edit page
-# ═══════════════════════════════════════════════════════════
+# --- 1. Inline Profile Editing ---
+# This allows the Admin to see the UserProfile details directly when editing a User
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ('avatar', 'phone_number', 'bio', 'is_online', 'last_seen', 'invite_code')
-    readonly_fields = ('invite_code', 'last_seen')
+    
+    fields = ('avatar', 'phone_number', 'is_online', 'bio')  # ❌ removed invite_code
+    readonly_fields = ('invite_code',)  # ✅ show but not editable
+    
+readonly_fields = ('invite_code',)
 
+def invite_code(self, obj):
+    return str(obj.invite_code)    
 
-# ═══════════════════════════════════════════════════════════
-#  Extended User admin
-# ═══════════════════════════════════════════════════════════
+# --- 2. Extend the default User Admin ---
+# We unregister the default User and re-register it with our Profile inline
 class UserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
-    list_display  = ('username', 'email', 'is_staff', 'online_status', 'last_seen_display')
-    list_filter   = ('is_staff', 'is_superuser', 'profile__is_online')
-    list_select_related = ('profile',)
+    list_display = ('username', 'email', 'is_staff', 'get_online_status')
+    
+    def get_online_status(self, obj):
+        return obj.profile.is_online
+    get_online_status.boolean = True
+    get_online_status.short_description = 'Is Online'
 
-    @admin.display(description='Status')
-    def online_status(self, obj):
-        try:
-            if obj.profile.is_online:
-                return format_html(
-                    '<span style="color:#00a884;font-weight:700;font-size:13px;">● Online</span>'
-                )
-        except UserProfile.DoesNotExist:
-            pass
-        return format_html('<span style="color:#aaa;font-size:13px;">○ Offline</span>')
-
-    @admin.display(description='Last seen')
-    def last_seen_display(self, obj):
-        try:
-            if obj.profile.is_online:
-                return format_html('<span style="color:#00a884;">Active now</span>')
-            if obj.profile.last_seen:
-                return obj.profile.last_seen.strftime('%d %b %Y, %H:%M')
-        except UserProfile.DoesNotExist:
-            pass
-        return '—'
-
-
+# Unregister the old User admin and register the new one
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
-
-# ═══════════════════════════════════════════════════════════
-#  UserProfile admin  +  custom "Who's Online" page
-# ═══════════════════════════════════════════════════════════
-@admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
-    list_display  = ('user', 'phone_number', 'online_badge', 'last_seen', 'message_count', 'invite_code')
-    list_filter   = ('is_online',)
-    search_fields = ('user__username', 'phone_number')
-    readonly_fields = ('invite_code', 'last_seen')
-    ordering      = ('-is_online', '-last_seen')
-
-    # ── green/grey badge ──────────────────────────────────
-    @admin.display(description='Status')
-    def online_badge(self, obj):
-        if obj.is_online:
-            return format_html(
-                '<span style="background:#00a884;color:#fff;padding:2px 10px;'
-                'border-radius:12px;font-size:12px;font-weight:600;">● Online</span>'
-            )
-        return format_html(
-            '<span style="background:#e0e0e0;color:#555;padding:2px 10px;'
-            'border-radius:12px;font-size:12px;">○ Offline</span>'
-        )
-
-    # ── total messages sent ───────────────────────────────
-    @admin.display(description='Msgs sent')
-    def message_count(self, obj):
-        return Message.objects.filter(sender=obj.user).count()
-
-    # ── extra URL: /admin/chatapp/userprofile/who-is-online/
-    def get_urls(self):
-        urls = super().get_urls()
-        extra = [
-            path(
-                'who-is-online/',
-                self.admin_site.admin_view(self.who_is_online_view),
-                name='who_is_online',
-            ),
-        ]
-        return extra + urls
-
-    def who_is_online_view(self, request):
-        online = (
-            UserProfile.objects
-            .filter(is_online=True)
-            .select_related('user')
-            .order_by('user__username')
-        )
-        recent = (
-            UserProfile.objects
-            .filter(is_online=False)
-            .select_related('user')
-            .order_by('-last_seen')[:20]
-        )
-        context = {
-            **self.admin_site.each_context(request),
-            'title': "Who's Online Right Now",
-            'online': online,
-            'online_count': online.count(),
-            'recent': recent,
-            'now': timezone.now(),
-        }
-        return render(request, 'admin/who_is_online.html', context)
-
-
-# ═══════════════════════════════════════════════════════════
-#  FriendRequest
-# ═══════════════════════════════════════════════════════════
-@admin.register(FriendRequest)
-class FriendRequestAdmin(admin.ModelAdmin):
-    list_display  = ('from_user', 'to_user', 'status_badge', 'created_at')
-    list_filter   = ('status',)
-    search_fields = ('from_user__username', 'to_user__username')
-    ordering      = ('-created_at',)
-
-    @admin.display(description='Status')
-    def status_badge(self, obj):
-        colors = {'pending': '#f0a500', 'accepted': '#00a884', 'rejected': '#e53935'}
-        color  = colors.get(obj.status, '#888')
-        return format_html(
-            '<span style="color:{};font-weight:600;">{}</span>', color, obj.get_status_display()
-        )
-
-
-# ═══════════════════════════════════════════════════════════
-#  Friendship
-# ═══════════════════════════════════════════════════════════
-@admin.register(Friendship)
-class FriendshipAdmin(admin.ModelAdmin):
-    list_display  = ('user1', 'user2', 'created_at')
-    search_fields = ('user1__username', 'user2__username')
-    ordering      = ('-created_at',)
-
-
-# ═══════════════════════════════════════════════════════════
-#  Message
-# ═══════════════════════════════════════════════════════════
+# --- 3. Message Admin ---
+# Give the Super User power to search and delete messages
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display   = ('sender', 'receiver', 'message_type', 'short_content', 'seen_badge', 'timestamp')
-    list_filter    = ('message_type', 'is_seen')
-    search_fields  = ('sender__username', 'receiver__username', 'content')
-    ordering       = ('-timestamp',)
+    list_display = ('id', 'sender', 'receiver', 'message_snippet', 'is_seen', 'timestamp')
+    list_filter = ('is_seen', 'timestamp', 'message_type')
+    search_fields = ('content', 'sender__username', 'receiver__username') # Search by text or user
     readonly_fields = ('timestamp',)
+    
+    # Custom action to mark messages as seen
+    actions = ['mark_as_seen']
 
-    @admin.display(description='Content')
-    def short_content(self, obj):
-        return obj.content[:60] if obj.content else '—'
+    def message_snippet(self, obj):
+        return obj.content[:50] + "..." if len(obj.content) > 50 else obj.content
+    message_snippet.short_description = 'Content'
 
-    @admin.display(description='Seen')
-    def seen_badge(self, obj):
-        if obj.is_seen:
-            return format_html('<span style="color:#00a884;">✔ Seen</span>')
-        return format_html('<span style="color:#aaa;">○ Unseen</span>')
+    def mark_as_seen(self, request, queryset):
+        queryset.update(is_seen=True)
+    mark_as_seen.short_description = "Mark selected messages as Seen"
 
+# --- 4. UserProfile Admin (Direct Access) ---
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'phone_number', 'is_online', 'last_seen')
+    list_filter = ('is_online',)
+    search_fields = ('user__username', 'phone_number')
 
-# ═══════════════════════════════════════════════════════════
-#  Notification
-# ═══════════════════════════════════════════════════════════
+# --- 5. FriendRequest Admin ---
+@admin.register(FriendRequest)
+class FriendRequestAdmin(admin.ModelAdmin):
+    list_display = ('from_user', 'to_user', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('from_user__username', 'to_user__username')
+
+# --- 6. Friendship Admin ---
+@admin.register(Friendship)
+class FriendshipAdmin(admin.ModelAdmin):
+    list_display = ('user1', 'user2', 'created_at')
+    search_fields = ('user1__username', 'user2__username')
+
+# --- 7. Notification Admin ---
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display   = ('user', 'from_user', 'short_message', 'read_badge', 'created_at')
-    list_filter    = ('is_read',)
-    search_fields  = ('user__username', 'from_user__username', 'message')
-    ordering       = ('-created_at',)
-    readonly_fields = ('created_at',)
-
-    @admin.display(description='Message')
-    def short_message(self, obj):
-        return obj.message[:60]
-
-    @admin.display(description='Read')
-    def read_badge(self, obj):
-        if obj.is_read:
-            return format_html('<span style="color:#aaa;">✔ Read</span>')
-        return format_html('<span style="color:#f0a500;font-weight:600;">● Unread</span>')
+    list_display = ('user', 'message', 'is_read', 'created_at')
+    list_filter = ('is_read', 'created_at')
+    search_fields = ('user__username', 'message')

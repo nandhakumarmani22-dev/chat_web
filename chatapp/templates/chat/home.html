@@ -858,7 +858,9 @@
     }
 
     .sidebar.hidden-mobile {
-      display: none;
+       width: 100%;
+    position: absolute;
+    z-index: 1;
     }
 
     .chat-panel {
@@ -1040,7 +1042,7 @@
     {% block chat_content %}
     <div class="welcome-screen">
       <i class="fa-brands fa-rocketchat"></i>
-      <h2>ChatApp</h2>
+      <h2>Chat App</h2>
       <p>Send and receive messages with your friends. Click a friend on the left to start chatting.</p>
       <button class="btn btn-primary" onclick="openAddFriendModal()">
         <i class="fas fa-user-plus"></i> Add Friends
@@ -1084,8 +1086,8 @@
         <div style="background:var(--input-bg);border-radius:var(--radius);padding:12px">
           <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Your invite link</div>
           <div style="display:flex;align-items:center;gap:8px">
-            <span id="my-invite-link" style="font-size:12px;color:var(--green);word-break:break-all;flex:1">{{
-              profile.get_invite_link }}</span>
+            <span id="my-invite-link"
+              style="font-size:12px;color:var(--green);word-break:break-all;flex:1">{{profile.get_invite_link }}</span>
             <button class="btn btn-secondary" onclick="copyInvite()"
               style="font-size:12px;padding:6px 10px;white-space:nowrap">
               <i class="fas fa-copy"></i> Copy
@@ -1153,7 +1155,6 @@
 </div>
 
 
-{{ friend_ids_json|json_script:"friends_data" }}
 
 <script>
   const ME = "{{ request.user.id }}";
@@ -1310,8 +1311,10 @@
   }
 
   /* ── ONLINE POLLING ── */
-  const data = JSON.parse(document.getElementById('friends_data').textContent);
-  const friendIds = data.map(fd => fd.user ? fd.user.id : fd.id);
+  // Derive friend IDs directly from the rendered sidebar DOM — no JSON needed
+  const friendIds = Array.from(document.querySelectorAll('.friend-item[id^="friend-"]'))
+    .map(el => el.id.replace('friend-', ''))
+    .filter(Boolean);
   async function pollOnline() {
     if (!friendIds.length) return;
     try {
@@ -1445,6 +1448,7 @@
       }
     });
   }
+
 
   // ✅ Run on DOM ready — not before
   document.addEventListener('DOMContentLoaded', function () {
