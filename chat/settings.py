@@ -1,11 +1,13 @@
 import os
 from pathlib import Path
+import cloudinary
 
-BASE_DIR = Path(__file__).resolve().parent.parent  # ✅ FIX 1: was .parent only — points to wrong dir
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production-xyz123abc456')
+# 🔐 SECRET KEY (set in Render)
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-temp-key')
 
-DEBUG = False  # ✅ FIX 2: removed duplicate DEBUG=True above
+DEBUG = False
 
 ALLOWED_HOSTS = [
     'chat-web-qxgy.onrender.com',
@@ -21,6 +23,8 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+
+# ✅ APPS
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
@@ -28,27 +32,36 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'cloudinary_storage',        # ✅ ADD — must be BEFORE staticfiles
+
+    'cloudinary_storage',
     'django.contrib.staticfiles',
-    'cloudinary',                # ✅ ADD
+    'cloudinary',
+
     'channels',
     'chatapp',
 ]
 
+
+# ✅ MIDDLEWARE
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ ADD — for static files on Render
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
 ROOT_URLCONF = 'chat.urls'
 ASGI_APPLICATION = 'chat.asgi.application'
 
+
+# ✅ TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -65,6 +78,8 @@ TEMPLATES = [
     },
 ]
 
+
+# ✅ DATABASE
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -72,42 +87,61 @@ DATABASES = {
     }
 }
 
-# ✅ FIX 3: Use Redis on Render, not InMemoryChannelLayer (resets on restart)
+
+# ✅ REDIS (IMPORTANT)
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [os.environ.get('REDIS_URL', 'redis://localhost:6379')],
+            'hosts': [os.environ.get('REDIS_URL')],
         },
     },
 }
 
+
 AUTH_PASSWORD_VALIDATORS = []
+
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
+
+# ✅ STATIC FILES
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # ✅ ADD
 
-# ✅ FIX 4: Cloudinary replaces local media storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+# ✅ CLOUDINARY CONFIG (IMPORTANT FIX)
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+)
+
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY':    os.environ.get('CLOUDINARY_API_KEY'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
+
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+
+# MEDIA (optional)
 MEDIA_URL = '/media/'
-# MEDIA_ROOT is no longer needed with Cloudinary, but harmless to keep
-MEDIA_ROOT = BASE_DIR / 'media'
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+# LOGIN
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
 APPEND_SLASH = True
