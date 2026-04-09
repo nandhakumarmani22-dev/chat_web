@@ -7,11 +7,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-produc
 
 DEBUG = False  # ✅ FIX 2: removed duplicate DEBUG=True above
 
-ALLOWED_HOSTS = [
-    'chat-web-qxgy.onrender.com',
-    'localhost',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = ['chat-web-qxgy.onrender.com','*']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://chat-web-qxgy.onrender.com',
