@@ -2,112 +2,132 @@
 {% block title %}Login — ChatApp{% endblock %}
 {% block extra_css %}
 <style>
-.auth-wrap {
+  * {
+    -webkit-text-size-adjust: 100%
+  }
+
+  .auth-wrap {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-
-    background-image: url('https://bluespacetech.com/wp-content/uploads/2024/02/AI-chatbord.png');
-    background-size: cover;        /* fills full screen */
-    background-position: center;   /* center image */
-    background-repeat: no-repeat;  /* no repeat */
-}
+    padding: 16px;
+    background: #f0f2f5
+  }
 
   .auth-box {
-    background: var(--sidebar-header);
+    background: #fff;
     border-radius: 16px;
-    padding: 40px 36px;
+    padding: 32px 24px;
     width: 100%;
     max-width: 400px;
-    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08)
   }
 
   .auth-logo {
     text-align: center;
-    margin-bottom: 28px;
+    margin-bottom: 24px
   }
 
-  .auth-logo i {
-    font-size: 48px;
-    color: var(--green);
+  .auth-logo .logo-circle {
+    width: 56px;
+    height: 56px;
+    background: #25D366;
+    border-radius: 50%;
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .auth-logo .logo-circle i {
+    font-size: 26px;
+    color: #fff
   }
 
   .auth-logo h1 {
-    font-size: 24px;
-    margin-top: 10px;
-    color: var(--text);
+    font-size: 20px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 2px
   }
 
   .auth-logo p {
     font-size: 13px;
-    color: var(--text2);
-    margin-top: 4px;
+    color: #667781
   }
 
   .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 14px
   }
 
   .form-group label {
     display: block;
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #667781;
+    margin-bottom: 5px;
+    letter-spacing: .4px;
+    text-transform: uppercase
   }
 
   .form-group input {
     width: 100%;
-    background: var(--input-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 11px 14px;
-    color: var(--text);
-    font-size: 15px;
+    background: #f0f2f5;
+    border: 1.5px solid transparent;
+    border-radius: 10px;
+    padding: 13px 14px;
+    color: #111;
+    font-size: 16px;
     outline: none;
-    transition: border-color .2s;
+    -webkit-appearance: none;
+    transition: border-color .2s, background .2s
   }
 
   .form-group input:focus {
-    border-color: var(--green);
+    border-color: #25D366;
+    background: #fff
   }
 
   .auth-btn {
     width: 100%;
-    padding: 12px;
-    background: var(--green);
+    padding: 14px;
+    background: #25D366;
     color: #fff;
-    border-radius: var(--radius);
-    font-size: 15px;
-    font-weight: 600;
-    margin-top: 8px;
-    transition: opacity .2s;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 6px;
+    cursor: pointer;
+    -webkit-appearance: none
   }
 
-  .auth-btn:hover {
-    opacity: .88;
+  .auth-btn:active {
+    opacity: .88
   }
 
   .auth-links {
     text-align: center;
-    margin-top: 20px;
-    font-size: 14px;
-    color: var(--text2);
+    margin-top: 18px;
+    font-size: 13px;
+    color: #667781
   }
 
   .auth-links a {
-    color: var(--green);
+    color: #075E54;
+    font-weight: 600;
+    text-decoration: none
   }
 
   .error-msg {
-    background: rgba(241, 92, 109, 0.15);
-    border: 1px solid var(--red);
-    border-radius: var(--radius);
+    background: #fff0f0;
+    border: 1px solid #ffb3b3;
+    border-radius: 10px;
     padding: 10px 14px;
     font-size: 13px;
-    color: var(--red);
-    margin-bottom: 16px;
+    color: #c0392b;
+    margin-bottom: 14px
   }
 </style>
 {% endblock %}
@@ -115,22 +135,23 @@
 <div class="auth-wrap">
   <div class="auth-box">
     <div class="auth-logo">
-
+      <div class="logo-circle"><i class="fa-brands fa-whatsapp"></i></div>
       <h1>ChatApp</h1>
       <p>Sign in to your account</p>
     </div>
     {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
-    <form method="POST">
+    <form method="POST" autocomplete="on">
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.GET.next }}">
       {% if invite_code %}<input type="hidden" name="invite_code" value="{{ invite_code }}">{% endif %}
       <div class="form-group">
         <label>Username</label>
-        <input type="text" name="username" placeholder="Enter your username" required autofocus>
+        <input type="text" name="username" placeholder="Enter your username" autocomplete="username" required autofocus>
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" name="password" placeholder="Enter your password" required>
+        <input type="password" name="password" placeholder="Enter your password" autocomplete="current-password"
+          required>
       </div>
       <button type="submit" class="auth-btn">Sign In</button>
     </form>
