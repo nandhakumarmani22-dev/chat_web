@@ -148,7 +148,7 @@ def login_view(request):
         else:
             error = 'Invalid username or password.'
 
-    return render(request, 'registration/login.html', {'error': error})
+    return render(request, 'chatapp/login.html', {'error': error})
 
 
 def logout_view(request):
