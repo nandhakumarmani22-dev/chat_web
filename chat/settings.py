@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'channels',
+    'daphne',
     'cloudinary',
     'cloudinary_storage',
     'chatapp',
