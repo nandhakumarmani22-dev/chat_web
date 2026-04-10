@@ -17,8 +17,9 @@ class UserProfile(models.Model):
     def __str__(self):
         return f'{self.user.username} Profile'
 
+    @property
     def get_invite_link(self):
-        return f'/invite/{self.invite_code}/'
+         return f'/invite/{self.invite_code}/'
 
     def get_avatar_url(self):
         """

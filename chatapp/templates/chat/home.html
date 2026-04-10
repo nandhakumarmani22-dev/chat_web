@@ -1010,8 +1010,7 @@
     <div class="pending-item">
       <div class="avatar" style="width:38px;height:38px;">
         {% if req.from_user.profile.avatar %}
-        <img src="{{ req.from_user.profile.avatar.url }}" alt=""
-          onerror="this.parentElement.innerHTML='<div class=&quot;avatar-placeholder&quot;>{{ req.from_user.username|first|upper }}</div>'">
+        <img src="{{ req.from_user.profile.avatar.url }}" alt="" onerror="this.parentElement.innerHTML='<div class=&quot;avatar-placeholder&quot;>{{ req.from_user.username|first|upper }}</div>'">
         {% else %}
         <div class="avatar-placeholder">{{ req.from_user.username|first|upper }}</div>
         {% endif %}
@@ -1047,14 +1046,12 @@
             <span class="time">{% if fd.last_msg %}{{ fd.last_msg.timestamp|date:"H:i" }}{% endif %}</span>
           </div>
           <div class="preview">
-            <span>{% if fd.last_msg %}{{ fd.last_msg.content|truncatechars:30 }}{% else %}No messages yet{% endif
-              %}</span>
+            <span>{% if fd.last_msg %}{{ fd.last_msg.content|truncatechars:30 }}{% else %}No messages yet{% endif %}</span>
             {% if fd.unread %}<span class="unread-badge">{{ fd.unread }}</span>{% endif %}
           </div>
         </div>
         <!-- REMOVE FRIEND BUTTON -->
-        <form method="POST" action="{% url 'remove_friend' fd.user.id %}" style="margin:0"
-          onclick="event.stopPropagation()">
+        <form method="POST" action="{% url 'remove_friend' fd.user.id %}" style="margin:0" onclick="event.stopPropagation()">
           {% csrf_token %}
           <button type="submit" class="icon-btn" title="Remove friend"
             style="width:32px;height:32px;font-size:14px;color:var(--text2);"
