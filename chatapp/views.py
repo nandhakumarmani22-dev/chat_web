@@ -200,7 +200,7 @@ def register_view(request):
 
             return redirect('login')
 
-    return render(request, 'registration/register.html', {
+    return render(request, 'register.html', {
         'error': error,
         'invite_code': invite_code
     })
