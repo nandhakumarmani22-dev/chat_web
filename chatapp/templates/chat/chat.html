@@ -4,153 +4,53 @@
 {% block extra_css %}
 {{ block.super }}
 <style>
-  /* ──────────── EMOJI PICKER ──────────── */
-  #emoji-picker {
-    position: absolute;
-    bottom: 68px;
-    left: 8px;
-    width: 340px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.55);
-    z-index: 500;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    user-select: none;
-  }
-
-  #emoji-picker.open { display: flex; }
-
-  #ep-search-wrap {
-    padding: 10px 10px 6px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  #ep-search {
-    width: 100%;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 8px 12px;
-    color: var(--text);
-    font-size: 13px;
-    outline: none;
-    font-family: inherit;
-    transition: border-color 0.2s;
-  }
-
-  #ep-search:focus { border-color: rgba(59,91,219,0.4); }
-  #ep-search::placeholder { color: var(--text3); }
-
-  #ep-tabs {
-    display: flex;
-    gap: 2px;
-    padding: 6px 8px 0;
-    border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  #ep-tabs::-webkit-scrollbar { display: none; }
-
-  .ep-tab {
-    flex-shrink: 0;
-    padding: 6px 8px;
-    font-size: 18px;
-    border-radius: 8px 8px 0 0;
-    cursor: pointer;
-    transition: background 0.15s;
-    border-bottom: 2px solid transparent;
-    line-height: 1;
-  }
-
-  .ep-tab:hover { background: var(--bg-hover); }
-
-  .ep-tab.active {
-    background: rgba(59,91,219,0.12);
-    border-bottom-color: var(--sent-bg);
-  }
-
-  #ep-body {
-    height: 220px;
-    overflow-y: auto;
-    padding: 8px 6px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--bg-hover) transparent;
-  }
-
-  #ep-body::-webkit-scrollbar { width: 4px; }
-  #ep-body::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
-
-  .ep-section-label {
-    font-size: 10px;
-    color: var(--text3);
-    padding: 4px 6px 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-  }
-
-  .ep-grid {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-  }
-
-  .ep-emoji {
-    font-size: 22px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 5px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.1s, transform 0.1s;
-  }
-
-  .ep-emoji:hover { background: var(--bg-hover); transform: scale(1.25); }
-
-  .ep-empty {
-    color: var(--text3);
-    font-size: 13px;
-    text-align: center;
-    padding: 32px 0;
-    grid-column: 1/-1;
-  }
-
-  /* ──────────── CHAT HEADER AVATAR ──────────── */
+  /* Avatar colour for chat header */
   .chat-header-av {
-    width: 40px; height: 40px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
+    flex-shrink: 0;
   }
+
+  .bubble {
+    max-width: 250px;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+
+    display: inline-block;
+}
 </style>
 {% endblock %}
 
 {% block chat_content %}
+
+<!-- CHAT HEADER -->
 <div class="chat-header">
-  <button class="icon-btn back-btn" onclick="goBack()" style="margin-right:2px;display:none">
+  <!-- Back button — always shown (hidden via CSS on desktop) -->
+  <button class="icon-btn back-btn" onclick="goBack()" style="flex-shrink:0">
     <i class="fas fa-arrow-left"></i>
   </button>
-  <a href="/profile/{{ other_user.username }}/">
+
+  <a href="/profile/{{ other_user.username }}/" style="flex-shrink:0">
     {% if other_profile.avatar %}
     <img src="{{ other_profile.avatar.url }}" class="chat-header-av"
       onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-    <div class="avatar-placeholder sz-40" style="display:none;">{{ other_user.username|first|upper }}</div>
+    <div class="avatar-placeholder sz-40 av-c2" style="display:none">{{ other_user.username|first|upper }}</div>
     {% else %}
-    <div class="avatar-placeholder sz-40 av-3">{{ other_user.username|first|upper }}</div>
+    <div class="avatar-placeholder sz-40 av-c2">{{ other_user.username|first|upper }}</div>
     {% endif %}
   </a>
-  <div class="info" style="flex:1">
+
+  <div class="info">
     <h2>{{ other_user.username }} <span id="ws-status" title="Connection status"></span></h2>
     <div class="status {% if other_profile.is_online %}online-text{% endif %}" id="chat-status">
       {% if other_profile.is_online %}Online{% else %}Last seen {{ other_profile.last_seen|date:"H:i" }}{% endif %}
     </div>
   </div>
-  <div style="display:flex;gap:4px">
+
+  <div style="display:flex;gap:4px;flex-shrink:0">
     <button class="icon-btn" onclick="scrollToBottom()" title="Scroll to bottom">
       <i class="fas fa-arrow-down"></i>
     </button>
@@ -167,13 +67,17 @@
   </div>
 </div>
 
+<!-- MESSAGES -->
 <div class="messages-area" id="messages-area">
   <div id="messages-container"></div>
 </div>
 
 <div class="typing-indicator" id="typing-indicator"></div>
 
-<div class="chat-input" style="position:relative;">
+<!-- INPUT BAR -->
+<div class="chat-input" style="position:relative">
+
+  <!-- Emoji picker -->
   <div id="emoji-picker">
     <div id="ep-search-wrap">
       <input id="ep-search" type="text" placeholder="Search emoji…" autocomplete="off">
@@ -185,124 +89,95 @@
   <button class="attach-btn" id="emoji-toggle-btn" title="Emoji" onclick="toggleEmojiPicker(event)">
     <i class="fas fa-smile" style="font-size:20px"></i>
   </button>
-  <label class="attach-btn" title="Send file">
+  <label class="attach-btn" title="Send file" style="cursor:pointer">
     <i class="fas fa-paperclip"></i>
     <input type="file" id="file-input" style="display:none" accept="*/*" onchange="sendFile()">
   </label>
-  <label class="attach-btn" title="Send image">
+  <label class="attach-btn" title="Send image" style="cursor:pointer">
     <i class="fas fa-image"></i>
     <input type="file" id="image-input" style="display:none" accept="image/*" onchange="sendImage()">
   </label>
+
   <div class="input-box">
-    <textarea id="msg-input" placeholder="Type a message…" rows="1"
-      onkeydown="handleKey(event)" oninput="onTyping()"></textarea>
+    <textarea id="msg-input" placeholder="Type a message…" rows="1" onkeydown="handleKey(event)"
+      oninput="onTyping()"></textarea>
   </div>
+
   <button type="button" class="send-btn" onclick="sendMsg()">
     <i class="fas fa-paper-plane"></i>
   </button>
 </div>
 
+<!-- CONTEXT MENU -->
 <div id="msg-context-menu">
   <div class="ctx-item" id="ctx-copy" onclick="ctxCopy()"><i class="fas fa-copy"></i> Copy</div>
   <div class="ctx-item" id="ctx-edit" onclick="ctxEdit()"><i class="fas fa-pencil-alt"></i> Edit</div>
   <div class="ctx-item danger" id="ctx-delete" onclick="ctxDelete()"><i class="fas fa-trash"></i> Delete</div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
   const OTHER_ID = parseInt("{{ other_user.id }}".trim(), 10);
-  const MY_ID    = parseInt("{{ request.user.id }}".trim(), 10);
+  const MY_ID = parseInt("{{ request.user.id }}".trim(), 10);
   let ws, typingTimer;
 
-  function goBack() {
-    if (window.innerWidth <= 768) window.location.href = '/';
-    else history.back();
-  }
-
-  /* ─── HELPERS ─── */
-  function getCurrentTime() {
-    const n = new Date();
-    return n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
-  }
+  /* ── HELPERS ── */
   function getCurrentDate() {
     const n = new Date();
-    return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0');
+    return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
   }
   function getCookie(name) {
     const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
     return v ? v[2] : null;
   }
   function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
   }
   function formatDate(d) {
     const today = getCurrentDate();
-    const yest = (() => {
-      const y = new Date(); y.setDate(y.getDate()-1);
-      return y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
-    })();
+    const yest = (() => { const y = new Date(); y.setDate(y.getDate() - 1); return y.getFullYear() + '-' + String(y.getMonth() + 1).padStart(2, '0') + '-' + String(y.getDate()).padStart(2, '0'); })();
     if (d === today) return 'Today';
     if (d === yest) return 'Yesterday';
     const parts = d.split('-');
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${parseInt(parts[2])} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${parseInt(parts[2])} ${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
   }
-  function scrollToBottom() {
-    const area = document.getElementById('messages-area');
-    area.scrollTop = area.scrollHeight;
-  }
-  function setWsStatus(connected) {
-    const dot = document.getElementById('ws-status');
-    if (dot) dot.className = connected ? 'connected' : '';
-  }
+  function scrollToBottom() { const a = document.getElementById('messages-area'); a.scrollTop = a.scrollHeight; }
+  function setWsStatus(ok) { const d = document.getElementById('ws-status'); if (d) d.className = ok ? 'connected' : ''; }
   function formatTime(ts) {
     if (!ts) return '';
-    if (/^\d{2}:\d{2}$/.test(ts)) {
-      const [h,m] = ts.split(':').map(Number);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      return `${h%12||12}:${String(m).padStart(2,'0')} ${ampm}`;
-    }
-    const date = new Date(ts);
-    if (isNaN(date)) return '';
-    return date.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', hour12:true});
+    if (/^\d{2}:\d{2}$/.test(ts)) { const [h, m] = ts.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+    const d = new Date(ts); if (isNaN(d)) return '';
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   }
   function dateKey(ts) {
     if (!ts) return '';
     if (/^\d{2}:\d{2}$/.test(ts)) return getCurrentDate();
-    const d = new Date(ts);
-    if (isNaN(d)) return '';
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const d = new Date(ts); if (isNaN(d)) return '';
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  function getLastRenderedDate() { return document.getElementById('messages-container').dataset.lastDate || ''; }
-  function setLastRenderedDate(d) { document.getElementById('messages-container').dataset.lastDate = d; }
+  function getLastDate() { return document.getElementById('messages-container').dataset.lastDate || ''; }
+  function setLastDate(d) { document.getElementById('messages-container').dataset.lastDate = d; }
 
-  /* ─── RENDER MESSAGES ─── */
+  /* ── RENDER ── */
   function renderMessages(msgs) {
-    const container = document.getElementById('messages-container');
-    container.innerHTML = '';
-    container.dataset.lastDate = '';
-    const sorted = [...msgs].sort((a,b) => {
-      const ta = new Date(a.timestamp), tb = new Date(b.timestamp);
-      if (isNaN(ta)||isNaN(tb)) return 0;
-      return ta - tb;
-    });
-    sorted.forEach(m => appendMessage(m, false));
+    const c = document.getElementById('messages-container');
+    c.innerHTML = ''; c.dataset.lastDate = '';
+    [...msgs].sort((a, b) => { const ta = new Date(a.timestamp), tb = new Date(b.timestamp); return (isNaN(ta) || isNaN(tb)) ? 0 : ta - tb; })
+      .forEach(m => appendMessage(m, false));
     scrollToBottom();
   }
 
-  function appendMessage(m, scroll=true) {
-    const container = document.getElementById('messages-container');
+  function appendMessage(m, scroll = true) {
+    const c = document.getElementById('messages-container');
     const d = dateKey(m.timestamp);
-    const lastDate = getLastRenderedDate();
-
-    if (d && d !== lastDate) {
-      setLastRenderedDate(d);
-      const div = document.createElement('div');
-      div.className = 'date-divider';
-      div.innerHTML = `<span>${formatDate(d)}</span>`;
-      container.appendChild(div);
+    if (d && d !== getLastDate()) {
+      setLastDate(d);
+      const div = document.createElement('div'); div.className = 'date-divider';
+      div.innerHTML = `<span>${formatDate(d)}</span>`; c.appendChild(div);
     }
 
     const isSent = parseInt(m.sender_id, 10) === MY_ID;
@@ -314,31 +189,21 @@
     if (m.message_type === 'image' && m.file_url) {
       inner = `<img src="${m.file_url}" class="img-msg" onclick="window.open('${m.file_url}','_blank')" alt="image">`;
     } else if (m.message_type === 'file' && m.file_url) {
-      inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
-        <i class="fas fa-file-alt"></i>
-        <div class="file-info">
-          <div class="fname">${escHtml(m.file_name||'File')}</div>
-          <div class="fsize">Download</div>
-        </div>
-      </a>`;
+      inner = `<a href="${m.file_url}" target="_blank" class="file-msg"><i class="fas fa-file-alt"></i><div class="file-info"><div class="fname">${escHtml(m.file_name || 'File')}</div><div class="fsize">Download</div></div></a>`;
     } else {
       inner = `<span class="msg-text">${escHtml(m.content)}</span>`;
     }
 
-    const seenIcon = isSent
-      ? `<span class="seen-icon ${m.is_seen?'seen':'unseen'}" title="${m.is_seen?'Seen':'Delivered'}">${m.is_seen?'✓✓':'✓'}</span>`
-      : '';
-
-    const editedLabel = m.is_edited ? '<span class="msg-edited-label">edited</span>' : '';
-    const timeStr = formatTime(m.timestamp);
+    const seenIcon = isSent ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}" title="${m.is_seen ? 'Seen' : 'Delivered'}">${m.is_seen ? '✓✓' : '✓'}</span>` : '';
+    const edited = m.is_edited ? '<span class="msg-edited-label">edited</span>' : '';
 
     row.innerHTML = `
-      <button class="reaction-trigger" onclick="showQuickReact('${m.id}',event)" title="React">😊</button>
-      <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent?'flex-end':'flex-start'}">
+      <button class="reaction-trigger" onclick="showQuickReact('${m.id}',event)">😊</button>
+      <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent ? 'flex-end' : 'flex-start'}">
         <div class="bubble" oncontextmenu="showCtxMenu(event,'${m.id}',${isSent})">
           ${inner}
           <div class="msg-meta">
-            <span class="time">${timeStr}${editedLabel}</span>
+            <span class="time">${formatTime(m.timestamp)}${edited}</span>
             ${seenIcon}
           </div>
         </div>
@@ -349,326 +214,264 @@
         </div>
         <div class="msg-reactions"></div>
       </div>`;
-
-    container.appendChild(row);
+    c.appendChild(row);
     if (scroll) scrollToBottom();
   }
 
-  /* ─── LOAD HISTORY ─── */
+  /* ── LOAD HISTORY ── */
   async function loadMessages() {
     try {
       const r = await fetch(`/api/messages/${OTHER_ID}/`);
       const d = await r.json();
       renderMessages(d.messages);
-    } catch (err) { console.error('Failed to load messages:', err); }
+    } catch (err) { console.error('Load failed:', err); }
   }
 
-  /* ─── SEND MESSAGE ─── */
+  /* ── SEND ── */
   function sendMsg() {
     const inp = document.getElementById('msg-input');
-    const txt = inp.value.trim();
-    if (!txt) return;
+    const txt = inp.value.trim(); if (!txt) return;
     document.getElementById('emoji-picker').classList.remove('open');
-
     const tempId = 'temp_' + Date.now();
-    const tempMsg = {
-      id: tempId, sender_id: MY_ID, content: txt,
-      message_type: 'text', file_url: '', file_name: '',
-      is_seen: false, is_edited: false,
-      timestamp: new Date().toISOString(),
-    };
-    appendMessage(tempMsg, true);
-
+    appendMessage({ id: tempId, sender_id: MY_ID, content: txt, message_type: 'text', file_url: '', file_name: '', is_seen: false, is_edited: false, timestamp: new Date().toISOString() }, true);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'message', content: txt, temp_id: tempId }));
     } else {
-      fetch('/api/send-message/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
-        body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}`
-      }).then(r=>r.json()).then(d => {
-        if (!d.error) { const t = document.getElementById('msg-'+tempId); if(t) t.remove(); appendMessage(d,false); }
-      }).catch(err=>console.error('Send failed:',err));
+      fetch('/api/send-message/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') }, body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}` })
+        .then(r => r.json()).then(d => { if (!d.error) { const t = document.getElementById('msg-' + tempId); if (t) t.remove(); appendMessage(d, false); } })
+        .catch(e => console.error(e));
     }
     inp.value = ''; inp.style.height = 'auto';
   }
 
-  /* ─── FILE / IMAGE ─── */
   async function sendFile() {
     const f = document.getElementById('file-input').files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file',f); fd.append('receiver_id',OTHER_ID);
-    const r = await fetch('/api/upload-file/', { method:'POST', headers:{'X-CSRFToken':getCookie('csrftoken')}, body:fd });
+    const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
+    const r = await fetch('/api/upload-file/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd });
     const d = await r.json(); if (!d.error) appendMessage(d);
     document.getElementById('file-input').value = '';
   }
-
   async function sendImage() {
     const f = document.getElementById('image-input').files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file',f); fd.append('receiver_id',OTHER_ID);
-    const r = await fetch('/api/upload-file/', { method:'POST', headers:{'X-CSRFToken':getCookie('csrftoken')}, body:fd });
+    const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
+    const r = await fetch('/api/upload-file/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd });
     const d = await r.json(); if (!d.error) appendMessage(d);
     document.getElementById('image-input').value = '';
   }
 
-  /* ─── INPUT EVENTS ─── */
-  function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
+  /* ── INPUT ── */
+  function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
   function onTyping() {
     const ta = document.getElementById('msg-input');
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight,120) + 'px';
+    ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action:'typing', is_typing:true }));
+      ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
       clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => ws.send(JSON.stringify({ action:'typing', is_typing:false })), 2000);
+      typingTimer = setTimeout(() => ws.send(JSON.stringify({ action: 'typing', is_typing: false })), 2000);
     }
   }
 
-  /* ─── WEBSOCKET ─── */
+  /* ── WEBSOCKET ── */
   function connectWS() {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${window.location.host}/ws/chat/${OTHER_ID}/`);
-
-    ws.onopen = () => { setWsStatus(true); };
-
+    ws.onopen = () => setWsStatus(true);
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
       if (data.type === 'message') {
-        if (data.temp_id) { const t = document.getElementById('msg-'+data.temp_id); if(t) t.remove(); }
-        if (!document.getElementById('msg-'+data.id)) appendMessage(data);
-      }
-      else if (data.type === 'typing') {
+        if (data.temp_id) { const t = document.getElementById('msg-' + data.temp_id); if (t) t.remove(); }
+        if (!document.getElementById('msg-' + data.id)) appendMessage(data);
+      } else if (data.type === 'typing') {
         document.getElementById('typing-indicator').innerHTML = data.is_typing ? 'typing…' : '';
-      }
-      else if (data.type === 'seen') {
-        document.querySelectorAll('.seen-icon.unseen').forEach(el => {
-          el.className = 'seen-icon seen'; el.textContent = '✓✓'; el.title = 'Seen';
-        });
-      }
-      else if (data.type === 'message_deleted') { applyDelete(data.msg_id); }
-      else if (data.type === 'message_edited') {
-        const row = document.getElementById('msg-'+data.msg_id);
-        const msgText = row ? row.querySelector('.msg-text') : null;
-        if (msgText) {
-          msgText.innerHTML = escHtml(data.content);
-          const meta = row.querySelector('.msg-meta .time');
-          if (meta && !meta.querySelector('.msg-edited-label'))
-            meta.insertAdjacentHTML('beforeend','<span class="msg-edited-label">edited</span>');
-        }
+      } else if (data.type === 'seen') {
+        document.querySelectorAll('.seen-icon.unseen').forEach(el => { el.className = 'seen-icon seen'; el.textContent = '✓✓'; el.title = 'Seen'; });
+      } else if (data.type === 'message_deleted') {
+        applyDelete(data.msg_id);
+      } else if (data.type === 'message_edited') {
+        const row = document.getElementById('msg-' + data.msg_id);
+        const txt = row?.querySelector('.msg-text');
+        if (txt) { txt.innerHTML = escHtml(data.content); const meta = row.querySelector('.msg-meta .time'); if (meta && !meta.querySelector('.msg-edited-label')) meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>'); }
         cancelEdit(data.msg_id);
       }
     };
-
     ws.onclose = () => { setWsStatus(false); setTimeout(connectWS, 3000); };
-    ws.onerror = () => { setWsStatus(false); };
+    ws.onerror = () => setWsStatus(false);
   }
 
-  /* ─── EMOJI PICKER ─── */
+  /* ── EMOJI PICKER ── */
   const EMOJI_CATEGORIES = [
-    { id:'recent', icon:'🕐', label:'Recently used', emojis:[] },
-    { id:'smileys', icon:'😀', label:'Smileys & people', emojis:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👋','🤚','🖐','✋','🖖','👌','✌️','🤞','👍','👎','✊','👏','🙌','🙏'] },
-    { id:'nature', icon:'🐶', label:'Animals & nature', emojis:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🦆','🦅','🦉','🦇','🐺','🐴','🦄','🐝','🦋','🐌','🐞','🐢','🦎','🐍','🦈','🐬','🐳','🐘','🦒','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🌺','🌸','🌼','🌻','🌈','⚡','❄️','🌊','💧','🔥'] },
-    { id:'food', icon:'🍔', label:'Food & drink', emojis:['🍎','🍊','🍋','🍇','🍓','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🥑','🍆','🥦','🥕','🌽','🍞','🥚','🍳','🥞','🍔','🍟','🍕','🌮','🌯','🍝','🍜','🍣','🍱','🧁','🍰','🎂','🍭','🍬','🍫','🍩','🍪','☕','🍵','🍺','🥂','🍷','🧋'] },
-    { id:'travel', icon:'✈️', label:'Travel & places', emojis:['🚗','🚕','🚙','🚌','🏎','🚓','🚑','🚒','🛻','🚲','🛴','⛵','🚤','✈️','🛩','🚁','🛸','🚀','⛰','🏔','🗻','🏕','🏖','🏠','🏡','🏢','🏥','🏦','🏨','🏪','🏫','🏬','🏭','🏯','🏰','🗼','🗽','⛲','🌃','🏙','🌄','🌅','🌆','🌇','🌉'] },
-    { id:'objects', icon:'💡', label:'Objects', emojis:['📱','💻','⌨️','🖥','💾','💿','📷','📸','📹','🎥','📞','☎️','📺','📻','⏰','🕰','⌛','⏳','📡','🔋','💡','🔦','💵','💳','💎','⚖️','🧰','🔧','🔨','⚒','🔩','🧲','🔪','⚔️','🔮','🔭','🔬','💊','🩺','💉','🧬','👓','🕶','🥽','👑','👒','🎩','🧢','💄','💍'] },
-    { id:'symbols', icon:'❤️', label:'Symbols', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💯','💢','❗','❕','❓','❔','‼️','⁉️','⚠️','♻️','✅','❎','💤','⬆️','⬇️','➡️','⬅️','↩️','↪️','🎵','🎶','➕','➖','➗','✖️','✔️','☑️'] },
-    { id:'activity', icon:'⚽', label:'Activities', emojis:['⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','⛳','🎣','🎽','🎿','🛷','🎯','🎮','🎰','🎲','♟','🧩','🎭','🎨','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🏆','🥇','🥈','🥉','🏅','🎖','🤸','🏋️','🏊','🧘','🚴','🏄'] },
+    { id: 'recent', icon: '🕐', label: 'Recently used', emojis: [] },
+    { id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👋', '🤚', '🖐', '✋', '🖖', '👌', '✌️', '🤞', '👍', '👎', '✊', '👏', '🙌', '🙏'] },
+    { id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐴', '🦄', '🐝', '🦋', '🐌', '🐞', '🐢', '🦎', '🐍', '🦈', '🐬', '🐳', '🐘', '🦒', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🍃', '🍂', '🍁', '🌺', '🌸', '🌼', '🌻', '🌈', '⚡', '❄️', '🌊', '💧', '🔥'] },
+    { id: 'food', icon: '🍔', label: 'Food & drink', emojis: ['🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥦', '🥕', '🌽', '🍞', '🥚', '🍳', '🥞', '🍔', '🍟', '🍕', '🌮', '🌯', '🍝', '🍜', '🍣', '🍱', '🧁', '🍰', '🎂', '🍭', '🍬', '🍫', '🍩', '🍪', '☕', '🍵', '🍺', '🥂', '🍷', '🧋'] },
+    { id: 'symbols', icon: '❤️', label: 'Symbols', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💯', '💢', '❗', '❕', '❓', '❔', '‼️', '⁉️', '⚠️', '♻️', '✅', '❎', '💤', '⬆️', '⬇️', '➡️', '⬅️', '↩️', '↪️', '🎵', '🎶', '➕', '➖', '➗', '✖️', '✔️', '☑️'] },
+    { id: 'activity', icon: '⚽', label: 'Activities', emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '⛳', '🎣', '🎽', '🎿', '🛷', '🎯', '🎮', '🎰', '🎲', '♟', '🧩', '🎭', '🎨', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎬', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖'] },
   ];
-  const QUICK_REACT = ['❤️','😂','😮','😢','😡','👍','👎','🙏'];
+  const QUICK_REACT = ['❤️', '😂', '😮', '😢', '😡', '👍', '👎', '🙏'];
 
-  function getRecent() { try { return JSON.parse(localStorage.getItem('ep_recent')||'[]'); } catch(e) { return []; } }
+  function getRecent() { try { return JSON.parse(localStorage.getItem('ep_recent') || '[]'); } catch { return []; } }
   function addRecent(emoji) {
-    let r = getRecent().filter(e=>e!==emoji);
-    r.unshift(emoji); r = r.slice(0,24);
-    try { localStorage.setItem('ep_recent',JSON.stringify(r)); } catch(e) {}
-    EMOJI_CATEGORIES[0].emojis = r;
+    let r = getRecent().filter(e => e !== emoji); r.unshift(emoji); r = r.slice(0, 24);
+    try { localStorage.setItem('ep_recent', JSON.stringify(r)); } catch { } EMOJI_CATEGORIES[0].emojis = r;
   }
-
   let activeCat = 'smileys';
   function buildEmojiPicker() {
     EMOJI_CATEGORIES[0].emojis = getRecent();
-    const tabsEl = document.getElementById('ep-tabs');
-    tabsEl.innerHTML = '';
+    const tabs = document.getElementById('ep-tabs'); tabs.innerHTML = '';
     EMOJI_CATEGORIES.forEach(cat => {
-      if (cat.id==='recent' && !cat.emojis.length) return;
+      if (cat.id === 'recent' && !cat.emojis.length) return;
       const t = document.createElement('div');
-      t.className = 'ep-tab' + (cat.id===activeCat?' active':'');
+      t.className = 'ep-tab' + (cat.id === activeCat ? ' active' : '');
       t.textContent = cat.icon; t.title = cat.label; t.dataset.cat = cat.id;
       t.onclick = () => { activeCat = cat.id; renderEmojiGrid(); renderTabs(); };
-      tabsEl.appendChild(t);
+      tabs.appendChild(t);
     });
   }
-  function renderTabs() {
-    document.querySelectorAll('.ep-tab').forEach(t =>
-      t.classList.toggle('active', t.dataset.cat === activeCat));
-  }
-  function renderEmojiGrid(filter='') {
-    const body = document.getElementById('ep-body');
-    body.innerHTML = '';
+  function renderTabs() { document.querySelectorAll('.ep-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === activeCat)); }
+  function renderEmojiGrid(filter = '') {
+    const body = document.getElementById('ep-body'); body.innerHTML = '';
     if (filter) {
-      const all = EMOJI_CATEGORIES.slice(1).flatMap(c=>c.emojis);
-      const results = all.filter(e=>e.includes(filter));
-      const grid = document.createElement('div'); grid.className='ep-grid';
-      if (results.length) { results.forEach(e=>grid.appendChild(makeEmojiEl(e))); }
-      else { const em=document.createElement('div'); em.className='ep-empty'; em.textContent='No emoji found'; grid.appendChild(em); }
+      const all = EMOJI_CATEGORIES.slice(1).flatMap(c => c.emojis).filter(e => e.includes(filter));
+      const grid = document.createElement('div'); grid.className = 'ep-grid';
+      if (all.length) { all.forEach(e => grid.appendChild(makeEmojiEl(e))); }
+      else { const em = document.createElement('div'); em.className = 'ep-empty'; em.textContent = 'No emoji found'; grid.appendChild(em); }
       body.appendChild(grid); return;
     }
-    const cats = activeCat==='recent'
-      ? [EMOJI_CATEGORIES[0]]
-      : EMOJI_CATEGORIES.filter(c=>c.id===activeCat);
+    const cats = activeCat === 'recent' ? [EMOJI_CATEGORIES[0]] : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
     cats.forEach(cat => {
       if (!cat.emojis.length) return;
-      const label=document.createElement('div'); label.className='ep-section-label'; label.textContent=cat.label;
-      body.appendChild(label);
-      const grid=document.createElement('div'); grid.className='ep-grid';
-      cat.emojis.forEach(e=>grid.appendChild(makeEmojiEl(e)));
-      body.appendChild(grid);
+      const label = document.createElement('div'); label.className = 'ep-section-label'; label.textContent = cat.label; body.appendChild(label);
+      const grid = document.createElement('div'); grid.className = 'ep-grid';
+      cat.emojis.forEach(e => grid.appendChild(makeEmojiEl(e))); body.appendChild(grid);
     });
   }
   function makeEmojiEl(emoji) {
-    const el=document.createElement('div');
-    el.className='ep-emoji'; el.textContent=emoji; el.title=emoji;
-    el.onclick=()=>insertEmoji(emoji); return el;
+    const el = document.createElement('div'); el.className = 'ep-emoji'; el.textContent = emoji; el.title = emoji;
+    el.onclick = () => insertEmoji(emoji); return el;
   }
   function toggleEmojiPicker(e) {
     e.stopPropagation();
-    const picker = document.getElementById('emoji-picker');
-    if (picker.classList.contains('open')) { picker.classList.remove('open'); }
-    else { buildEmojiPicker(); renderEmojiGrid(); picker.classList.add('open'); document.getElementById('ep-search').value=''; document.getElementById('ep-search').focus(); }
+    const p = document.getElementById('emoji-picker');
+    if (p.classList.contains('open')) { p.classList.remove('open'); }
+    else { buildEmojiPicker(); renderEmojiGrid(); p.classList.add('open'); document.getElementById('ep-search').value = ''; document.getElementById('ep-search').focus(); }
   }
-  document.getElementById('ep-search').addEventListener('input',function() { renderEmojiGrid(this.value.trim()); });
-  document.addEventListener('click',e=>{
+  document.getElementById('ep-search').addEventListener('input', function () { renderEmojiGrid(this.value.trim()); });
+  document.addEventListener('click', e => {
     if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn'))
       document.getElementById('emoji-picker').classList.remove('open');
   });
   function insertEmoji(emoji) {
-    const inp=document.getElementById('msg-input');
-    const start=inp.selectionStart, end=inp.selectionEnd;
-    inp.value=inp.value.slice(0,start)+emoji+inp.value.slice(end);
-    inp.setSelectionRange(start+emoji.length,start+emoji.length);
+    const inp = document.getElementById('msg-input');
+    const s = inp.selectionStart, en = inp.selectionEnd;
+    inp.value = inp.value.slice(0, s) + emoji + inp.value.slice(en);
+    inp.setSelectionRange(s + emoji.length, s + emoji.length);
     inp.focus(); addRecent(emoji); onTyping();
   }
 
-  /* ─── REACTIONS ─── */
-  const msgReactions={}, myReactions={};
+  /* ── REACTIONS ── */
+  const msgReactions = {}, myReactions = {};
   function getReactionsEl(msgId) { return document.querySelector(`#msg-${msgId} .msg-reactions`); }
   function renderReactions(msgId) {
-    const el=getReactionsEl(msgId); if(!el) return;
-    const rx=msgReactions[msgId]||{}, mine=myReactions[msgId]||new Set();
-    el.innerHTML='';
-    Object.entries(rx).forEach(([emoji,count]) => {
+    const el = getReactionsEl(msgId); if (!el) return;
+    const rx = msgReactions[msgId] || {}, mine = myReactions[msgId] || new Set();
+    el.innerHTML = '';
+    Object.entries(rx).forEach(([emoji, count]) => {
       if (!count) return;
-      const chip=document.createElement('span');
-      chip.className='reaction-chip'+(mine.has(emoji)?' mine':'');
-      chip.innerHTML=`${emoji}<span class="rc-count">${count>1?count:''}</span>`;
-      chip.title=`${count} reaction${count>1?'s':''}`;
-      chip.onclick=()=>toggleReaction(msgId,emoji);
-      el.appendChild(chip);
+      const chip = document.createElement('span');
+      chip.className = 'reaction-chip' + (mine.has(emoji) ? ' mine' : '');
+      chip.innerHTML = `${emoji}<span class="rc-count">${count > 1 ? count : ''}</span>`;
+      chip.onclick = () => toggleReaction(msgId, emoji); el.appendChild(chip);
     });
   }
-  function toggleReaction(msgId,emoji) {
-    if (!msgReactions[msgId]) msgReactions[msgId]={};
-    if (!myReactions[msgId]) myReactions[msgId]=new Set();
-    const mine=myReactions[msgId];
-    if (mine.has(emoji)) { mine.delete(emoji); msgReactions[msgId][emoji]=Math.max(0,(msgReactions[msgId][emoji]||1)-1); }
-    else { mine.add(emoji); msgReactions[msgId][emoji]=(msgReactions[msgId][emoji]||0)+1; }
+  function toggleReaction(msgId, emoji) {
+    if (!msgReactions[msgId]) msgReactions[msgId] = {};
+    if (!myReactions[msgId]) myReactions[msgId] = new Set();
+    const mine = myReactions[msgId];
+    if (mine.has(emoji)) { mine.delete(emoji); msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1); }
+    else { mine.add(emoji); msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1; }
     addRecent(emoji); renderReactions(msgId); closeAllQuickReact();
   }
-  function showQuickReact(msgId,e) {
+  function showQuickReact(msgId, e) {
     e.stopPropagation(); closeAllQuickReact();
-    const row=document.getElementById('msg-'+msgId); if(!row) return;
-    let qr=row.querySelector('.quick-reactions');
+    const row = document.getElementById('msg-' + msgId); if (!row) return;
+    let qr = row.querySelector('.quick-reactions');
     if (!qr) {
-      qr=document.createElement('div'); qr.className='quick-reactions';
-      qr.innerHTML=QUICK_REACT.map(em=>`<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`).join('');
+      qr = document.createElement('div'); qr.className = 'quick-reactions';
+      qr.innerHTML = QUICK_REACT.map(em => `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`).join('');
       row.appendChild(qr);
     }
     qr.classList.add('show');
   }
-  function closeAllQuickReact() {
-    document.querySelectorAll('.quick-reactions.show').forEach(el=>el.classList.remove('show'));
-  }
-  document.addEventListener('click',closeAllQuickReact);
+  function closeAllQuickReact() { document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show')); }
+  document.addEventListener('click', closeAllQuickReact);
 
-  /* ─── CONTEXT MENU ─── */
-  let ctxMsgId=null, ctxIsMine=false;
-  function showCtxMenu(e,msgId,isMine) {
-    e.preventDefault();
-    ctxMsgId=msgId; ctxIsMine=isMine;
-    const menu=document.getElementById('msg-context-menu');
-    document.getElementById('ctx-edit').style.display=isMine?'flex':'none';
-    document.getElementById('ctx-delete').style.display=isMine?'flex':'none';
-    menu.style.left=Math.min(e.clientX,window.innerWidth-180)+'px';
-    menu.style.top=Math.min(e.clientY,window.innerHeight-120)+'px';
+  /* ── CONTEXT MENU ── */
+  let ctxMsgId = null, ctxIsMine = false;
+  function showCtxMenu(e, msgId, isMine) {
+    e.preventDefault(); ctxMsgId = msgId; ctxIsMine = isMine;
+    const menu = document.getElementById('msg-context-menu');
+    document.getElementById('ctx-edit').style.display = isMine ? 'flex' : 'none';
+    document.getElementById('ctx-delete').style.display = isMine ? 'flex' : 'none';
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 120) + 'px';
     menu.classList.add('show');
   }
-  document.addEventListener('click',()=>document.getElementById('msg-context-menu').classList.remove('show'));
-
+  document.addEventListener('click', () => document.getElementById('msg-context-menu').classList.remove('show'));
   function ctxCopy() {
-    const row=document.getElementById('msg-'+ctxMsgId);
-    const txt=row?row.querySelector('.msg-text'):null;
-    if(txt) navigator.clipboard.writeText(txt.innerText).catch(()=>{});
+    const row = document.getElementById('msg-' + ctxMsgId);
+    const txt = row?.querySelector('.msg-text');
+    if (txt) navigator.clipboard.writeText(txt.innerText).catch(() => { });
     document.getElementById('msg-context-menu').classList.remove('show');
   }
-
   function ctxEdit() {
     document.getElementById('msg-context-menu').classList.remove('show');
-    const row=document.getElementById('msg-'+ctxMsgId); if(!row) return;
-    const msgText=row.querySelector('.msg-text'); if(!msgText) return;
-    const wrap=document.getElementById('edit-wrap-'+ctxMsgId);
-    const ta=document.getElementById('edit-ta-'+ctxMsgId);
-    ta.value=msgText.innerText; wrap.classList.add('show'); ta.focus();
-    ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
+    const row = document.getElementById('msg-' + ctxMsgId); if (!row) return;
+    const msgText = row.querySelector('.msg-text'); if (!msgText) return;
+    const wrap = document.getElementById('edit-wrap-' + ctxMsgId);
+    const ta = document.getElementById('edit-ta-' + ctxMsgId);
+    ta.value = msgText.innerText; wrap.classList.add('show'); ta.focus();
+    ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
   }
-
-  function cancelEdit(msgId) { const w=document.getElementById('edit-wrap-'+msgId); if(w) w.classList.remove('show'); }
-
+  function cancelEdit(msgId) { const w = document.getElementById('edit-wrap-' + msgId); if (w) w.classList.remove('show'); }
   async function submitEdit(msgId) {
-    const ta=document.getElementById('edit-ta-'+msgId);
-    const newContent=ta?ta.value.trim():''; if(!newContent) return;
-    const row=document.getElementById('msg-'+msgId);
-    const msgText=row?row.querySelector('.msg-text'):null;
-    if (ws && ws.readyState===WebSocket.OPEN) {
-      ws.send(JSON.stringify({action:'edit_message',msg_id:msgId,content:newContent}));
+    const ta = document.getElementById('edit-ta-' + msgId);
+    const newContent = ta?.value.trim(); if (!newContent) return;
+    const row = document.getElementById('msg-' + msgId);
+    const msgText = row?.querySelector('.msg-text');
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'edit_message', msg_id: msgId, content: newContent }));
     } else {
-      const r=await fetch(`/api/edit-message/${msgId}/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},body:JSON.stringify({content:newContent})});
-      const d=await r.json(); if(d.error){alert(d.error);return;}
+      const r = await fetch(`/api/edit-message/${msgId}/`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }, body: JSON.stringify({ content: newContent }) });
+      const d = await r.json(); if (d.error) { alert(d.error); return; }
     }
-    if(msgText){
-      msgText.innerHTML=escHtml(newContent);
-      const meta=row.querySelector('.msg-meta .time');
-      if(meta&&!meta.querySelector('.msg-edited-label')) meta.insertAdjacentHTML('beforeend','<span class="msg-edited-label">edited</span>');
+    if (msgText) {
+      msgText.innerHTML = escHtml(newContent);
+      const meta = row.querySelector('.msg-meta .time');
+      if (meta && !meta.querySelector('.msg-edited-label')) meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>');
     }
     cancelEdit(msgId);
   }
-
   async function ctxDelete() {
     document.getElementById('msg-context-menu').classList.remove('show');
     if (!confirm('Delete this message?')) return;
-    const msgId=ctxMsgId;
-    if (ws && ws.readyState===WebSocket.OPEN) {
-      ws.send(JSON.stringify({action:'delete_message',msg_id:msgId}));
+    const msgId = ctxMsgId;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'delete_message', msg_id: msgId }));
     } else {
-      const r=await fetch(`/api/delete-message/${msgId}/`,{method:'POST',headers:{'X-CSRFToken':getCookie('csrftoken')}});
-      const d=await r.json(); if(d.error){alert(d.error);return;} applyDelete(msgId);
+      const r = await fetch(`/api/delete-message/${msgId}/`, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+      const d = await r.json(); if (d.error) { alert(d.error); return; } applyDelete(msgId);
     }
   }
-
   function applyDelete(msgId) {
-    const row=document.getElementById('msg-'+msgId); if(!row) return;
-    const bubble=row.querySelector('.bubble');
-    if(bubble) bubble.innerHTML='<span style="color:var(--text3);font-style:italic;font-size:13px"><i class="fas fa-ban" style="margin-right:4px"></i>Message deleted</span>';
-    const editWrap=document.getElementById('edit-wrap-'+msgId); if(editWrap) editWrap.remove();
-    const reactionBtn=row.querySelector('.reaction-trigger'); if(reactionBtn) reactionBtn.style.display='none';
+    const row = document.getElementById('msg-' + msgId); if (!row) return;
+    const bubble = row.querySelector('.bubble');
+    if (bubble) bubble.innerHTML = '<span style="color:var(--text3);font-style:italic;font-size:13px"><i class="fas fa-ban" style="margin-right:4px"></i>Message deleted</span>';
+    document.getElementById('edit-wrap-' + msgId)?.remove();
+    row.querySelector('.reaction-trigger')?.remove();
   }
 
-  /* ─── INIT ─── */
+  /* ── INIT ── */
   loadMessages();
   connectWS();
-
-  /* show back btn on mobile */
-  if (window.innerWidth <= 768) {
-    const btn = document.querySelector('.back-btn');
-    if (btn) btn.style.display = 'flex';
-  }
 </script>
 {% endblock %}
