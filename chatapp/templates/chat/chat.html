@@ -4,15 +4,16 @@
 {% block extra_css %}
 {{ block.super }}
 <style>
+  /* ──────────── EMOJI PICKER ──────────── */
   #emoji-picker {
     position: absolute;
-    bottom: 64px;
+    bottom: 68px;
     left: 8px;
     width: 340px;
-    background: #1e2a32;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55);
     z-index: 500;
     display: none;
     flex-direction: column;
@@ -20,44 +21,39 @@
     user-select: none;
   }
 
-  #emoji-picker.open {
-    display: flex;
-  }
+  #emoji-picker.open { display: flex; }
 
   #ep-search-wrap {
     padding: 10px 10px 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-bottom: 1px solid var(--border);
   }
 
   #ep-search {
     width: 100%;
-    background: #131c21;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 7px 12px 7px 32px;
-    color: #e9edef;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: var(--text);
     font-size: 13px;
     outline: none;
-    background-repeat: no-repeat;
-    background-position: 10px center;
+    font-family: inherit;
+    transition: border-color 0.2s;
   }
 
-  #ep-search::placeholder {
-    color: #667781;
-  }
+  #ep-search:focus { border-color: rgba(59,91,219,0.4); }
+  #ep-search::placeholder { color: var(--text3); }
 
   #ep-tabs {
     display: flex;
     gap: 2px;
     padding: 6px 8px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-bottom: 1px solid var(--border);
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  #ep-tabs::-webkit-scrollbar {
-    display: none;
-  }
+  #ep-tabs::-webkit-scrollbar { display: none; }
 
   .ep-tab {
     flex-shrink: 0;
@@ -65,18 +61,16 @@
     font-size: 18px;
     border-radius: 8px 8px 0 0;
     cursor: pointer;
-    transition: background .15s;
+    transition: background 0.15s;
     border-bottom: 2px solid transparent;
     line-height: 1;
   }
 
-  .ep-tab:hover {
-    background: rgba(255, 255, 255, 0.06);
-  }
+  .ep-tab:hover { background: var(--bg-hover); }
 
   .ep-tab.active {
-    background: rgba(0, 168, 132, 0.12);
-    border-bottom-color: #00a884;
+    background: rgba(59,91,219,0.12);
+    border-bottom-color: var(--sent-bg);
   }
 
   #ep-body {
@@ -84,24 +78,19 @@
     overflow-y: auto;
     padding: 8px 6px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    scrollbar-color: var(--bg-hover) transparent;
   }
 
-  #ep-body::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  #ep-body::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-  }
+  #ep-body::-webkit-scrollbar { width: 4px; }
+  #ep-body::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
 
   .ep-section-label {
-    font-size: 11px;
-    color: #667781;
+    font-size: 10px;
+    color: var(--text3);
     padding: 4px 6px 2px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 600;
   }
 
   .ep-grid {
@@ -119,361 +108,43 @@
     padding: 5px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background .1s, transform .1s;
+    transition: background 0.1s, transform 0.1s;
   }
 
-  .ep-emoji:hover {
-    background: rgba(255, 255, 255, 0.1);
-    transform: scale(1.25);
-  }
+  .ep-emoji:hover { background: var(--bg-hover); transform: scale(1.25); }
 
   .ep-empty {
-    color: #667781;
+    color: var(--text3);
     font-size: 13px;
     text-align: center;
     padding: 32px 0;
     grid-column: 1/-1;
   }
 
-  .bubble {
-    position: relative;
-    padding: 7px 10px 22px 10px;
-    min-width: 90px;
-    width: fit-content;
-  }
-
-  .bubble .msg-text {
-    padding-right: 52px;
-    display: block;
-  }
-
-  .bubble .msg-meta {
-    position: absolute;
-    bottom: 5px;
-    right: 8px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-  }
-
-  .bubble::after {
-    content: '';
-    display: block;
-    clear: both;
-  }
-
-  .msg-row {
-    position: relative;
-    display: flex;
-    align-items: flex-end;
-    margin-bottom: 2px;
-    width: 100%;
-  }
-
-  .msg-row.sent {
-    justify-content: flex-end;
-    flex-direction: row;
-  }
-
-  .msg-row.recv {
-    justify-content: flex-start;
-    flex-direction: row;
-  }
-
-  .reaction-trigger {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0;
-    transition: opacity .15s;
-    background: #1e2a32;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 4px 8px;
-    font-size: 16px;
-    cursor: pointer;
-    white-space: nowrap;
-    z-index: 10;
-    line-height: 1;
-  }
-
-  .msg-row.sent .reaction-trigger {
-    right: calc(100% + 6px);
-  }
-
-  .msg-row.recv .reaction-trigger {
-    left: calc(100% + 6px);
-  }
-
-  .msg-row:hover .reaction-trigger {
-    opacity: 1;
-  }
-
-  .quick-reactions {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    background: #1e2a32;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;
-    padding: 6px 8px;
-    display: none;
-    gap: 4px;
-    z-index: 50;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  }
-
-  .msg-row.sent .quick-reactions {
-    right: 0;
-  }
-
-  .msg-row.recv .quick-reactions {
-    left: 0;
-  }
-
-  .quick-reactions.show {
-    display: flex;
-  }
-
-  .qr-emoji {
-    font-size: 22px;
-    cursor: pointer;
-    padding: 3px 4px;
-    border-radius: 8px;
-    transition: transform .12s, background .1s;
-    line-height: 1;
-  }
-
-  .qr-emoji:hover {
-    transform: scale(1.3);
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .msg-reactions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 4px;
-  }
-
-  .msg-row.sent .msg-reactions {
-    justify-content: flex-end;
-  }
-
-  .reaction-chip {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 2px 7px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background .15s;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-  }
-
-  .reaction-chip:hover {
-    background: rgba(255, 255, 255, 0.12);
-  }
-
-  .reaction-chip .rc-count {
-    font-size: 11px;
-    color: #8696a0;
-  }
-
-  .reaction-chip.mine {
-    border-color: rgba(0, 168, 132, 0.5);
-    background: rgba(0, 168, 132, 0.08);
-  }
-
-  /* ── WS status dot ── */
-  #ws-status {
-    width: 8px;
-    height: 8px;
+  /* ──────────── CHAT HEADER AVATAR ──────────── */
+  .chat-header-av {
+    width: 40px; height: 40px;
     border-radius: 50%;
-    background: #f00;
-    display: inline-block;
-    margin-left: 6px;
-    transition: background .3s;
-  }
-
-  #ws-status.connected {
-    background: #00a884;
-  }
-
-  /* ── FIX 1: Seen icon styles ── */
-  .seen-icon {
-    font-size: 13px;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .seen-icon.unseen {
-    opacity: 0.45;
-    filter: grayscale(0.4);
-  }
-
-  .seen-icon.seen {
-    opacity: 1;
-  }
-
-  /* ── FIX 2: Message time style ── */
-  .msg-meta .time {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.55);
-    line-height: 1;
-  }
-
-  /* ── FIX 3: Avatar placeholder ── */
-  .avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #00a884, #008f72);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 17px;
-    font-weight: 700;
-    text-transform: uppercase;
-    flex-shrink: 0;
-    letter-spacing: 0;
-    user-select: none;
-  }
-
-  /* Mobile: show only one panel at a time */
-  @media (max-width: 768px) {
-    .sidebar {
-      width: 100%;
-      position: absolute;
-      z-index: 1;
-    }
-
-    .chat-window {
-      width: 100%;
-      position: absolute;
-      z-index: 0;
-      display: none;
-    }
-
-    .chat-window.active {
-      display: flex;
-      z-index: 2;
-    }
-  }
-
-  /* ── Context Menu ── */
-  #msg-context-menu {
-    position: fixed;
-    background: #1e2a32;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    padding: 6px 0;
-    min-width: 160px;
-    z-index: 9999;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    display: none;
-  }
-
-  #msg-context-menu.show {
-    display: block;
-  }
-
-  .ctx-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 16px;
-    font-size: 14px;
-    color: #e9edef;
-    cursor: pointer;
-    transition: background .12s;
-  }
-
-  .ctx-item:hover {
-    background: rgba(255, 255, 255, 0.07);
-  }
-
-  .ctx-item.danger {
-    color: #f15c5c;
-  }
-
-  .ctx-item i {
-    width: 16px;
-    text-align: center;
-  }
-
-  /* ── Edit input overlay ── */
-  .edit-input-wrap {
-    display: none;
-    margin-top: 4px;
-  }
-
-  .edit-input-wrap.show {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .edit-input-wrap textarea {
-    flex: 1;
-    background: #2a3942;
-    border: 1px solid rgba(0, 168, 132, 0.5);
-    border-radius: 8px;
-    color: #e9edef;
-    padding: 6px 10px;
-    font-size: 14px;
-    resize: none;
-    outline: none;
-    max-height: 100px;
-    font-family: inherit;
-  }
-
-  .edit-input-wrap button {
-    background: #00a884;
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    padding: 6px 10px;
-    cursor: pointer;
-    font-size: 13px;
-  }
-
-  .edit-input-wrap button.cancel-edit {
-    background: #374248;
-  }
-
-  .msg-edited-label {
-    font-size: 10px;
-    color: #8696a0;
-    margin-left: 4px;
-    font-style: italic;
+    object-fit: cover;
   }
 </style>
 {% endblock %}
 
 {% block chat_content %}
 <div class="chat-header">
-  <button class="back-btn icon-btn" onclick="goBack()" style="margin-right:4px">
+  <button class="icon-btn back-btn" onclick="goBack()" style="margin-right:2px;display:none">
     <i class="fas fa-arrow-left"></i>
   </button>
   <a href="/profile/{{ other_user.username }}/">
-    <div class="avatar" style="width:40px;height:40px;">
-      {% if other_profile.avatar %}
-      <img src="{{ other_profile.avatar.url }}"
-        style="width:40px;height:40px;border-radius:50%;object-fit:cover;display:block;"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-      <div class="avatar-placeholder" style="display:none;">{{ other_user.username|first|upper }}</div>
-      {% else %}
-      <div class="avatar-placeholder">{{ other_user.username|first|upper }}</div>
-      {% endif %}
-    </div>
+    {% if other_profile.avatar %}
+    <img src="{{ other_profile.avatar.url }}" class="chat-header-av"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+    <div class="avatar-placeholder sz-40" style="display:none;">{{ other_user.username|first|upper }}</div>
+    {% else %}
+    <div class="avatar-placeholder sz-40 av-3">{{ other_user.username|first|upper }}</div>
+    {% endif %}
   </a>
-  <div class="info">
+  <div class="info" style="flex:1">
     <h2>{{ other_user.username }} <span id="ws-status" title="Connection status"></span></h2>
     <div class="status {% if other_profile.is_online %}online-text{% endif %}" id="chat-status">
       {% if other_profile.is_online %}Online{% else %}Last seen {{ other_profile.last_seen|date:"H:i" }}{% endif %}
@@ -499,6 +170,7 @@
 <div class="messages-area" id="messages-area">
   <div id="messages-container"></div>
 </div>
+
 <div class="typing-indicator" id="typing-indicator"></div>
 
 <div class="chat-input" style="position:relative;">
@@ -509,8 +181,9 @@
     <div id="ep-tabs"></div>
     <div id="ep-body"></div>
   </div>
+
   <button class="attach-btn" id="emoji-toggle-btn" title="Emoji" onclick="toggleEmojiPicker(event)">
-    <i class="fas fa-smile" style="font-size:20px;color:#8696a0"></i>
+    <i class="fas fa-smile" style="font-size:20px"></i>
   </button>
   <label class="attach-btn" title="Send file">
     <i class="fas fa-paperclip"></i>
@@ -521,8 +194,8 @@
     <input type="file" id="image-input" style="display:none" accept="image/*" onchange="sendImage()">
   </label>
   <div class="input-box">
-    <textarea id="msg-input" placeholder="Type a message" rows="1" onkeydown="handleKey(event)"
-      oninput="onTyping()"></textarea>
+    <textarea id="msg-input" placeholder="Type a message…" rows="1"
+      onkeydown="handleKey(event)" oninput="onTyping()"></textarea>
   </div>
   <button type="button" class="send-btn" onclick="sendMsg()">
     <i class="fas fa-paper-plane"></i>
@@ -534,126 +207,93 @@
   <div class="ctx-item" id="ctx-edit" onclick="ctxEdit()"><i class="fas fa-pencil-alt"></i> Edit</div>
   <div class="ctx-item danger" id="ctx-delete" onclick="ctxDelete()"><i class="fas fa-trash"></i> Delete</div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
   const OTHER_ID = parseInt("{{ other_user.id }}".trim(), 10);
-  const MY_ID = parseInt("{{ request.user.id }}".trim(), 10);
+  const MY_ID    = parseInt("{{ request.user.id }}".trim(), 10);
   let ws, typingTimer;
 
   function goBack() {
-    if (window.innerWidth <= 768) {
-      window.location.href = '/';
-    } else {
-      history.back();
-    }
+    if (window.innerWidth <= 768) window.location.href = '/';
+    else history.back();
   }
-  /* ─── HELPERS ─────────────────────────────────────────────── */
+
+  /* ─── HELPERS ─── */
   function getCurrentTime() {
     const n = new Date();
-    return n.getHours().toString().padStart(2, '0') + ':' + n.getMinutes().toString().padStart(2, '0');
+    return n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
   }
   function getCurrentDate() {
     const n = new Date();
-    return n.getFullYear() + '-' +
-      String(n.getMonth() + 1).padStart(2, '0') + '-' +
-      String(n.getDate()).padStart(2, '0');
+    return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0');
   }
   function getCookie(name) {
     const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
     return v ? v[2] : null;
   }
   function escHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
   }
   function formatDate(d) {
-    // d is now always YYYY-MM-DD
     const today = getCurrentDate();
     const yest = (() => {
-      const y = new Date(); y.setDate(y.getDate() - 1);
-      return y.getFullYear() + '-' +
-        String(y.getMonth() + 1).padStart(2, '0') + '-' +
-        String(y.getDate()).padStart(2, '0');
+      const y = new Date(); y.setDate(y.getDate()-1);
+      return y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
     })();
     if (d === today) return 'Today';
     if (d === yest) return 'Yesterday';
     const parts = d.split('-');
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${parseInt(parts[2])} ${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(parts[2])} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
   }
   function scrollToBottom() {
     const area = document.getElementById('messages-area');
     area.scrollTop = area.scrollHeight;
   }
-
-  /* ─── WS STATUS DOT ───────────────────────────────────────── */
   function setWsStatus(connected) {
     const dot = document.getElementById('ws-status');
     if (dot) dot.className = connected ? 'connected' : '';
   }
-
-  /* ─── FIX: formatTime now handles full ISO strings ───────── */
   function formatTime(ts) {
     if (!ts) return '';
-    // Handle plain "HH:MM" strings — convert to AM/PM
     if (/^\d{2}:\d{2}$/.test(ts)) {
-      const [h, m] = ts.split(':').map(Number);
+      const [h,m] = ts.split(':').map(Number);
       const ampm = h >= 12 ? 'PM' : 'AM';
-      const hour = h % 12 || 12;
-      return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+      return `${h%12||12}:${String(m).padStart(2,'0')} ${ampm}`;
     }
     const date = new Date(ts);
     if (isNaN(date)) return '';
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    return date.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', hour12:true});
   }
-
-  /* ─── FIX: date key is always YYYY-MM-DD ─────────────────── */
   function dateKey(ts) {
     if (!ts) return '';
-    // Handle plain "HH:MM" (no date info — use today)
     if (/^\d{2}:\d{2}$/.test(ts)) return getCurrentDate();
     const d = new Date(ts);
     if (isNaN(d)) return '';
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
+  function getLastRenderedDate() { return document.getElementById('messages-container').dataset.lastDate || ''; }
+  function setLastRenderedDate(d) { document.getElementById('messages-container').dataset.lastDate = d; }
 
-  function getLastRenderedDate() {
-    return document.getElementById('messages-container').dataset.lastDate || '';
-  }
-  function setLastRenderedDate(d) {
-    document.getElementById('messages-container').dataset.lastDate = d;
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     RENDER MESSAGES
-  ═══════════════════════════════════════════════════════════ */
+  /* ─── RENDER MESSAGES ─── */
   function renderMessages(msgs) {
     const container = document.getElementById('messages-container');
     container.innerHTML = '';
     container.dataset.lastDate = '';
-
-    const sorted = [...msgs].sort((a, b) => {
-      const ta = new Date(a.timestamp);
-      const tb = new Date(b.timestamp);
-      if (isNaN(ta) || isNaN(tb)) return 0;
+    const sorted = [...msgs].sort((a,b) => {
+      const ta = new Date(a.timestamp), tb = new Date(b.timestamp);
+      if (isNaN(ta)||isNaN(tb)) return 0;
       return ta - tb;
     });
-
     sorted.forEach(m => appendMessage(m, false));
     scrollToBottom();
   }
 
-  function appendMessage(m, scroll = true) {
+  function appendMessage(m, scroll=true) {
     const container = document.getElementById('messages-container');
-
-    // ── FIX: use dateKey() so divider always gets YYYY-MM-DD ──
     const d = dateKey(m.timestamp);
     const lastDate = getLastRenderedDate();
 
@@ -672,13 +312,12 @@
 
     let inner = '';
     if (m.message_type === 'image' && m.file_url) {
-      inner = `<img src="${m.file_url}" class="img-msg"
-                onclick="window.open('${m.file_url}','_blank')" alt="image">`;
+      inner = `<img src="${m.file_url}" class="img-msg" onclick="window.open('${m.file_url}','_blank')" alt="image">`;
     } else if (m.message_type === 'file' && m.file_url) {
       inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
         <i class="fas fa-file-alt"></i>
         <div class="file-info">
-          <div class="fname">${escHtml(m.file_name || 'File')}</div>
+          <div class="fname">${escHtml(m.file_name||'File')}</div>
           <div class="fsize">Download</div>
         </div>
       </a>`;
@@ -686,21 +325,16 @@
       inner = `<span class="msg-text">${escHtml(m.content)}</span>`;
     }
 
-    // ── FIX: seen icon always visible with proper styling ──
     const seenIcon = isSent
-      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}" title="${m.is_seen ? 'Seen' : 'Delivered'}">${m.is_seen ? '👀' : '🙈'}</span>`
+      ? `<span class="seen-icon ${m.is_seen?'seen':'unseen'}" title="${m.is_seen?'Seen':'Delivered'}">${m.is_seen?'✓✓':'✓'}</span>`
       : '';
 
-    const editedLabel = m.is_edited
-      ? '<span class="msg-edited-label">edited</span>'
-      : '';
-
-    // ── FIX: formatTime now correctly handles ISO timestamps ──
+    const editedLabel = m.is_edited ? '<span class="msg-edited-label">edited</span>' : '';
     const timeStr = formatTime(m.timestamp);
 
     row.innerHTML = `
-      <button class="reaction-trigger" onclick="showQuickReact('${m.id}', event)" title="React">😊</button>
-      <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent ? 'flex-end' : 'flex-start'}">
+      <button class="reaction-trigger" onclick="showQuickReact('${m.id}',event)" title="React">😊</button>
+      <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent?'flex-end':'flex-start'}">
         <div class="bubble" oncontextmenu="showCtxMenu(event,'${m.id}',${isSent})">
           ${inner}
           <div class="msg-meta">
@@ -720,209 +354,132 @@
     if (scroll) scrollToBottom();
   }
 
-  /* ─── LOAD HISTORY ────────────────────────────────────────── */
+  /* ─── LOAD HISTORY ─── */
   async function loadMessages() {
     try {
       const r = await fetch(`/api/messages/${OTHER_ID}/`);
       const d = await r.json();
       renderMessages(d.messages);
-    } catch (err) {
-      console.error('Failed to load messages:', err);
-    }
+    } catch (err) { console.error('Failed to load messages:', err); }
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     SEND MESSAGE
-     FIX: timestamp is now a proper ISO string so formatTime()
-     and dateKey() both work correctly on temp messages.
-  ═══════════════════════════════════════════════════════════ */
+  /* ─── SEND MESSAGE ─── */
   function sendMsg() {
     const inp = document.getElementById('msg-input');
     const txt = inp.value.trim();
     if (!txt) return;
-
     document.getElementById('emoji-picker').classList.remove('open');
 
     const tempId = 'temp_' + Date.now();
-
     const tempMsg = {
-      id: tempId,
-      sender_id: MY_ID,
-      content: txt,
-      message_type: 'text',
-      file_url: '',
-      file_name: '',
-      is_seen: false,
-      is_edited: false,
-      timestamp: new Date().toISOString(),   // ✅ FIX: full ISO string, not "HH:MM"
+      id: tempId, sender_id: MY_ID, content: txt,
+      message_type: 'text', file_url: '', file_name: '',
+      is_seen: false, is_edited: false,
+      timestamp: new Date().toISOString(),
     };
-
     appendMessage(tempMsg, true);
 
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        action: 'message',
-        content: txt,
-        temp_id: tempId
-      }));
+      ws.send(JSON.stringify({ action: 'message', content: txt, temp_id: tempId }));
     } else {
       fetch('/api/send-message/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-CSRFToken': getCookie('csrftoken')
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
         body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}`
-      })
-        .then(r => r.json())
-        .then(d => {
-          if (!d.error) {
-            const tempEl = document.getElementById('msg-' + tempId);
-            if (tempEl) tempEl.remove();
-            appendMessage(d, false);
-          }
-        })
-        .catch(err => console.error('Send failed:', err));
+      }).then(r=>r.json()).then(d => {
+        if (!d.error) { const t = document.getElementById('msg-'+tempId); if(t) t.remove(); appendMessage(d,false); }
+      }).catch(err=>console.error('Send failed:',err));
     }
-
-    inp.value = '';
-    inp.style.height = 'auto';
+    inp.value = ''; inp.style.height = 'auto';
   }
 
-  /* ─── FILE / IMAGE UPLOAD ─────────────────────────────────── */
+  /* ─── FILE / IMAGE ─── */
   async function sendFile() {
-    const f = document.getElementById('file-input').files[0];
-    if (!f) return;
-    const fd = new FormData();
-    fd.append('file', f); fd.append('receiver_id', OTHER_ID);
-    const r = await fetch('/api/upload-file/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      body: fd
-    });
-    const d = await r.json();
-    if (!d.error) appendMessage(d);
+    const f = document.getElementById('file-input').files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('file',f); fd.append('receiver_id',OTHER_ID);
+    const r = await fetch('/api/upload-file/', { method:'POST', headers:{'X-CSRFToken':getCookie('csrftoken')}, body:fd });
+    const d = await r.json(); if (!d.error) appendMessage(d);
     document.getElementById('file-input').value = '';
   }
 
   async function sendImage() {
-    const f = document.getElementById('image-input').files[0];
-    if (!f) return;
-    const fd = new FormData();
-    fd.append('file', f); fd.append('receiver_id', OTHER_ID);
-    const r = await fetch('/api/upload-file/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      body: fd
-    });
-    const d = await r.json();
-    if (!d.error) appendMessage(d);
+    const f = document.getElementById('image-input').files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('file',f); fd.append('receiver_id',OTHER_ID);
+    const r = await fetch('/api/upload-file/', { method:'POST', headers:{'X-CSRFToken':getCookie('csrftoken')}, body:fd });
+    const d = await r.json(); if (!d.error) appendMessage(d);
     document.getElementById('image-input').value = '';
   }
 
-  /* ─── INPUT EVENTS ────────────────────────────────────────── */
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-  }
+  /* ─── INPUT EVENTS ─── */
+  function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
   function onTyping() {
     const ta = document.getElementById('msg-input');
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight,120) + 'px';
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
+      ws.send(JSON.stringify({ action:'typing', is_typing:true }));
       clearTimeout(typingTimer);
-      typingTimer = setTimeout(() =>
-        ws.send(JSON.stringify({ action: 'typing', is_typing: false })), 2000);
+      typingTimer = setTimeout(() => ws.send(JSON.stringify({ action:'typing', is_typing:false })), 2000);
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     WEBSOCKET
-  ═══════════════════════════════════════════════════════════ */
+  /* ─── WEBSOCKET ─── */
   function connectWS() {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${wsProtocol}://${window.location.host}/ws/chat/${OTHER_ID}/`);
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${window.location.host}/ws/chat/${OTHER_ID}/`);
 
-    ws.onopen = () => {
-      console.log("Connected ✅");
-      setWsStatus(true);
-    };
+    ws.onopen = () => { setWsStatus(true); };
 
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
-
       if (data.type === 'message') {
-        if (data.temp_id) {
-          const tmp = document.getElementById('msg-' + data.temp_id);
-          if (tmp) tmp.remove();
-        }
-        if (!document.getElementById('msg-' + data.id)) {
-          appendMessage(data);
-        }
+        if (data.temp_id) { const t = document.getElementById('msg-'+data.temp_id); if(t) t.remove(); }
+        if (!document.getElementById('msg-'+data.id)) appendMessage(data);
       }
       else if (data.type === 'typing') {
-        const indicator = document.getElementById('typing-indicator');
-        indicator.innerHTML = data.is_typing ? 'typing...' : '';
+        document.getElementById('typing-indicator').innerHTML = data.is_typing ? 'typing…' : '';
       }
       else if (data.type === 'seen') {
-        // Update all unseen icons to seen
         document.querySelectorAll('.seen-icon.unseen').forEach(el => {
-          el.className = 'seen-icon seen';
-          el.textContent = '👀';
-          el.title = 'Seen';
+          el.className = 'seen-icon seen'; el.textContent = '✓✓'; el.title = 'Seen';
         });
       }
-      else if (data.type === 'message_deleted') {
-        applyDelete(data.msg_id);
-      }
+      else if (data.type === 'message_deleted') { applyDelete(data.msg_id); }
       else if (data.type === 'message_edited') {
-        const row = document.getElementById('msg-' + data.msg_id);
+        const row = document.getElementById('msg-'+data.msg_id);
         const msgText = row ? row.querySelector('.msg-text') : null;
         if (msgText) {
           msgText.innerHTML = escHtml(data.content);
           const meta = row.querySelector('.msg-meta .time');
-          if (meta && !meta.querySelector('.msg-edited-label')) {
-            meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>');
-          }
+          if (meta && !meta.querySelector('.msg-edited-label'))
+            meta.insertAdjacentHTML('beforeend','<span class="msg-edited-label">edited</span>');
         }
         cancelEdit(data.msg_id);
       }
     };
 
-    ws.onclose = () => {
-      console.log("Disconnected ❌");
-      setWsStatus(false);
-      setTimeout(connectWS, 3000);
-    };
-
-    ws.onerror = () => {
-      console.log("Error ❌");
-      setWsStatus(false);
-    };
+    ws.onclose = () => { setWsStatus(false); setTimeout(connectWS, 3000); };
+    ws.onerror = () => { setWsStatus(false); };
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     EMOJI PICKER
-  ═══════════════════════════════════════════════════════════ */
+  /* ─── EMOJI PICKER ─── */
   const EMOJI_CATEGORIES = [
-    { id: 'recent', icon: '🕐', label: 'Recently used', emojis: [] },
-    { id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👋', '🤚', '🖐', '✋', '🖖', '👌', '✌️', '🤞', '👍', '👎', '✊', '👏', '🙌', '🙏'] },
-    { id: 'nature', icon: '🐶', label: 'Animals & nature', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐴', '🦄', '🐝', '🦋', '🐌', '🐞', '🐢', '🦎', '🐍', '🦈', '🐬', '🐳', '🐘', '🦒', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🍃', '🍂', '🍁', '🌺', '🌸', '🌼', '🌻', '🌈', '⚡', '❄️', '🌊', '💧', '🔥'] },
-    { id: 'food', icon: '🍔', label: 'Food & drink', emojis: ['🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥦', '🥕', '🌽', '🍞', '🥚', '🍳', '🥞', '🍔', '🍟', '🍕', '🌮', '🌯', '🍝', '🍜', '🍣', '🍱', '🧁', '🍰', '🎂', '🍭', '🍬', '🍫', '🍩', '🍪', '☕', '🍵', '🍺', '🥂', '🍷', '🧋'] },
-    { id: 'travel', icon: '✈️', label: 'Travel & places', emojis: ['🚗', '🚕', '🚙', '🚌', '🏎', '🚓', '🚑', '🚒', '🛻', '🚲', '🛴', '⛵', '🚤', '✈️', '🛩', '🚁', '🛸', '🚀', '⛰', '🏔', '🗻', '🏕', '🏖', '🏠', '🏡', '🏢', '🏥', '🏦', '🏨', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '🗼', '🗽', '⛲', '🌃', '🏙', '🌄', '🌅', '🌆', '🌇', '🌉'] },
-    { id: 'objects', icon: '💡', label: 'Objects', emojis: ['📱', '💻', '⌨️', '🖥', '💾', '💿', '📷', '📸', '📹', '🎥', '📞', '☎️', '📺', '📻', '⏰', '🕰', '⌛', '⏳', '📡', '🔋', '💡', '🔦', '💵', '💳', '💎', '⚖️', '🧰', '🔧', '🔨', '⚒', '🔩', '🧲', '🔪', '⚔️', '🔮', '🔭', '🔬', '💊', '🩺', '💉', '🧬', '👓', '🕶', '🥽', '👑', '👒', '🎩', '🧢', '💄', '💍'] },
-    { id: 'symbols', icon: '❤️', label: 'Symbols', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💯', '💢', '❗', '❕', '❓', '❔', '‼️', '⁉️', '⚠️', '♻️', '✅', '❎', '💤', '⬆️', '⬇️', '➡️', '⬅️', '↩️', '↪️', '🎵', '🎶', '➕', '➖', '➗', '✖️', '✔️', '☑️'] },
-    { id: 'activity', icon: '⚽', label: 'Activities', emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '⛳', '🎣', '🎽', '🎿', '🛷', '🎯', '🎮', '🎰', '🎲', '♟', '🧩', '🎭', '🎨', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎬', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🤸', '🏋️', '🏊', '🧘', '🚴', '🏄'] },
+    { id:'recent', icon:'🕐', label:'Recently used', emojis:[] },
+    { id:'smileys', icon:'😀', label:'Smileys & people', emojis:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👋','🤚','🖐','✋','🖖','👌','✌️','🤞','👍','👎','✊','👏','🙌','🙏'] },
+    { id:'nature', icon:'🐶', label:'Animals & nature', emojis:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🦆','🦅','🦉','🦇','🐺','🐴','🦄','🐝','🦋','🐌','🐞','🐢','🦎','🐍','🦈','🐬','🐳','🐘','🦒','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🌺','🌸','🌼','🌻','🌈','⚡','❄️','🌊','💧','🔥'] },
+    { id:'food', icon:'🍔', label:'Food & drink', emojis:['🍎','🍊','🍋','🍇','🍓','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🥑','🍆','🥦','🥕','🌽','🍞','🥚','🍳','🥞','🍔','🍟','🍕','🌮','🌯','🍝','🍜','🍣','🍱','🧁','🍰','🎂','🍭','🍬','🍫','🍩','🍪','☕','🍵','🍺','🥂','🍷','🧋'] },
+    { id:'travel', icon:'✈️', label:'Travel & places', emojis:['🚗','🚕','🚙','🚌','🏎','🚓','🚑','🚒','🛻','🚲','🛴','⛵','🚤','✈️','🛩','🚁','🛸','🚀','⛰','🏔','🗻','🏕','🏖','🏠','🏡','🏢','🏥','🏦','🏨','🏪','🏫','🏬','🏭','🏯','🏰','🗼','🗽','⛲','🌃','🏙','🌄','🌅','🌆','🌇','🌉'] },
+    { id:'objects', icon:'💡', label:'Objects', emojis:['📱','💻','⌨️','🖥','💾','💿','📷','📸','📹','🎥','📞','☎️','📺','📻','⏰','🕰','⌛','⏳','📡','🔋','💡','🔦','💵','💳','💎','⚖️','🧰','🔧','🔨','⚒','🔩','🧲','🔪','⚔️','🔮','🔭','🔬','💊','🩺','💉','🧬','👓','🕶','🥽','👑','👒','🎩','🧢','💄','💍'] },
+    { id:'symbols', icon:'❤️', label:'Symbols', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💯','💢','❗','❕','❓','❔','‼️','⁉️','⚠️','♻️','✅','❎','💤','⬆️','⬇️','➡️','⬅️','↩️','↪️','🎵','🎶','➕','➖','➗','✖️','✔️','☑️'] },
+    { id:'activity', icon:'⚽', label:'Activities', emojis:['⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','⛳','🎣','🎽','🎿','🛷','🎯','🎮','🎰','🎲','♟','🧩','🎭','🎨','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🏆','🥇','🥈','🥉','🏅','🎖','🤸','🏋️','🏊','🧘','🚴','🏄'] },
   ];
-  const QUICK_REACT = ['❤️', '😂', '😮', '😢', '😡', '👍', '👎', '🙏'];
+  const QUICK_REACT = ['❤️','😂','😮','😢','😡','👍','👎','🙏'];
 
-  function getRecent() {
-    try { return JSON.parse(localStorage.getItem('ep_recent') || '[]'); } catch (e) { return []; }
-  }
+  function getRecent() { try { return JSON.parse(localStorage.getItem('ep_recent')||'[]'); } catch(e) { return []; } }
   function addRecent(emoji) {
-    let r = getRecent().filter(e => e !== emoji);
-    r.unshift(emoji); r = r.slice(0, 24);
-    try { localStorage.setItem('ep_recent', JSON.stringify(r)); } catch (e) { }
+    let r = getRecent().filter(e=>e!==emoji);
+    r.unshift(emoji); r = r.slice(0,24);
+    try { localStorage.setItem('ep_recent',JSON.stringify(r)); } catch(e) {}
     EMOJI_CATEGORIES[0].emojis = r;
   }
 
@@ -932,9 +489,9 @@
     const tabsEl = document.getElementById('ep-tabs');
     tabsEl.innerHTML = '';
     EMOJI_CATEGORIES.forEach(cat => {
-      if (cat.id === 'recent' && !cat.emojis.length) return;
+      if (cat.id==='recent' && !cat.emojis.length) return;
       const t = document.createElement('div');
-      t.className = 'ep-tab' + (cat.id === activeCat ? ' active' : '');
+      t.className = 'ep-tab' + (cat.id===activeCat?' active':'');
       t.textContent = cat.icon; t.title = cat.label; t.dataset.cat = cat.id;
       t.onclick = () => { activeCat = cat.id; renderEmojiGrid(); renderTabs(); };
       tabsEl.appendChild(t);
@@ -944,180 +501,142 @@
     document.querySelectorAll('.ep-tab').forEach(t =>
       t.classList.toggle('active', t.dataset.cat === activeCat));
   }
-  function renderEmojiGrid(filter = '') {
+  function renderEmojiGrid(filter='') {
     const body = document.getElementById('ep-body');
     body.innerHTML = '';
     if (filter) {
-      const all = EMOJI_CATEGORIES.slice(1).flatMap(c => c.emojis);
-      const results = all.filter(e => e.includes(filter));
-      const grid = document.createElement('div'); grid.className = 'ep-grid';
-      if (results.length) { results.forEach(e => grid.appendChild(makeEmojiEl(e))); }
-      else { const em = document.createElement('div'); em.className = 'ep-empty'; em.textContent = 'No emoji found'; grid.appendChild(em); }
+      const all = EMOJI_CATEGORIES.slice(1).flatMap(c=>c.emojis);
+      const results = all.filter(e=>e.includes(filter));
+      const grid = document.createElement('div'); grid.className='ep-grid';
+      if (results.length) { results.forEach(e=>grid.appendChild(makeEmojiEl(e))); }
+      else { const em=document.createElement('div'); em.className='ep-empty'; em.textContent='No emoji found'; grid.appendChild(em); }
       body.appendChild(grid); return;
     }
-    const cats = activeCat === 'recent'
+    const cats = activeCat==='recent'
       ? [EMOJI_CATEGORIES[0]]
-      : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
+      : EMOJI_CATEGORIES.filter(c=>c.id===activeCat);
     cats.forEach(cat => {
       if (!cat.emojis.length) return;
-      const label = document.createElement('div');
-      label.className = 'ep-section-label'; label.textContent = cat.label;
+      const label=document.createElement('div'); label.className='ep-section-label'; label.textContent=cat.label;
       body.appendChild(label);
-      const grid = document.createElement('div'); grid.className = 'ep-grid';
-      cat.emojis.forEach(e => grid.appendChild(makeEmojiEl(e)));
+      const grid=document.createElement('div'); grid.className='ep-grid';
+      cat.emojis.forEach(e=>grid.appendChild(makeEmojiEl(e)));
       body.appendChild(grid);
     });
   }
   function makeEmojiEl(emoji) {
-    const el = document.createElement('div');
-    el.className = 'ep-emoji'; el.textContent = emoji; el.title = emoji;
-    el.onclick = () => insertEmoji(emoji); return el;
+    const el=document.createElement('div');
+    el.className='ep-emoji'; el.textContent=emoji; el.title=emoji;
+    el.onclick=()=>insertEmoji(emoji); return el;
   }
   function toggleEmojiPicker(e) {
     e.stopPropagation();
     const picker = document.getElementById('emoji-picker');
-    if (picker.classList.contains('open')) {
-      picker.classList.remove('open');
-    } else {
-      buildEmojiPicker(); renderEmojiGrid();
-      picker.classList.add('open');
-      document.getElementById('ep-search').value = '';
-      document.getElementById('ep-search').focus();
-    }
+    if (picker.classList.contains('open')) { picker.classList.remove('open'); }
+    else { buildEmojiPicker(); renderEmojiGrid(); picker.classList.add('open'); document.getElementById('ep-search').value=''; document.getElementById('ep-search').focus(); }
   }
-  document.getElementById('ep-search').addEventListener('input', function () {
-    renderEmojiGrid(this.value.trim());
-  });
-  document.addEventListener('click', e => {
+  document.getElementById('ep-search').addEventListener('input',function() { renderEmojiGrid(this.value.trim()); });
+  document.addEventListener('click',e=>{
     if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-toggle-btn'))
       document.getElementById('emoji-picker').classList.remove('open');
   });
   function insertEmoji(emoji) {
-    const inp = document.getElementById('msg-input');
-    const start = inp.selectionStart, end = inp.selectionEnd;
-    inp.value = inp.value.slice(0, start) + emoji + inp.value.slice(end);
-    inp.setSelectionRange(start + emoji.length, start + emoji.length);
+    const inp=document.getElementById('msg-input');
+    const start=inp.selectionStart, end=inp.selectionEnd;
+    inp.value=inp.value.slice(0,start)+emoji+inp.value.slice(end);
+    inp.setSelectionRange(start+emoji.length,start+emoji.length);
     inp.focus(); addRecent(emoji); onTyping();
   }
 
-  /* ─── REACTIONS ───────────────────────────────────────────── */
-  const msgReactions = {}, myReactions = {};
+  /* ─── REACTIONS ─── */
+  const msgReactions={}, myReactions={};
   function getReactionsEl(msgId) { return document.querySelector(`#msg-${msgId} .msg-reactions`); }
   function renderReactions(msgId) {
-    const el = getReactionsEl(msgId); if (!el) return;
-    const rx = msgReactions[msgId] || {}, mine = myReactions[msgId] || new Set();
-    el.innerHTML = '';
-    Object.entries(rx).forEach(([emoji, count]) => {
+    const el=getReactionsEl(msgId); if(!el) return;
+    const rx=msgReactions[msgId]||{}, mine=myReactions[msgId]||new Set();
+    el.innerHTML='';
+    Object.entries(rx).forEach(([emoji,count]) => {
       if (!count) return;
-      const chip = document.createElement('span');
-      chip.className = 'reaction-chip' + (mine.has(emoji) ? ' mine' : '');
-      chip.innerHTML = `${emoji}<span class="rc-count">${count > 1 ? count : ''}</span>`;
-      chip.title = `${count} reaction${count > 1 ? 's' : ''}`;
-      chip.onclick = () => toggleReaction(msgId, emoji);
+      const chip=document.createElement('span');
+      chip.className='reaction-chip'+(mine.has(emoji)?' mine':'');
+      chip.innerHTML=`${emoji}<span class="rc-count">${count>1?count:''}</span>`;
+      chip.title=`${count} reaction${count>1?'s':''}`;
+      chip.onclick=()=>toggleReaction(msgId,emoji);
       el.appendChild(chip);
     });
   }
-  function toggleReaction(msgId, emoji) {
-    if (!msgReactions[msgId]) msgReactions[msgId] = {};
-    if (!myReactions[msgId]) myReactions[msgId] = new Set();
-    const mine = myReactions[msgId];
-    if (mine.has(emoji)) {
-      mine.delete(emoji);
-      msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1);
-    } else {
-      mine.add(emoji);
-      msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1;
-    }
+  function toggleReaction(msgId,emoji) {
+    if (!msgReactions[msgId]) msgReactions[msgId]={};
+    if (!myReactions[msgId]) myReactions[msgId]=new Set();
+    const mine=myReactions[msgId];
+    if (mine.has(emoji)) { mine.delete(emoji); msgReactions[msgId][emoji]=Math.max(0,(msgReactions[msgId][emoji]||1)-1); }
+    else { mine.add(emoji); msgReactions[msgId][emoji]=(msgReactions[msgId][emoji]||0)+1; }
     addRecent(emoji); renderReactions(msgId); closeAllQuickReact();
   }
-  function showQuickReact(msgId, e) {
+  function showQuickReact(msgId,e) {
     e.stopPropagation(); closeAllQuickReact();
-    const row = document.getElementById('msg-' + msgId); if (!row) return;
-    let qr = row.querySelector('.quick-reactions');
+    const row=document.getElementById('msg-'+msgId); if(!row) return;
+    let qr=row.querySelector('.quick-reactions');
     if (!qr) {
-      qr = document.createElement('div'); qr.className = 'quick-reactions';
-      qr.innerHTML = QUICK_REACT.map(em =>
-        `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`
-      ).join('');
+      qr=document.createElement('div'); qr.className='quick-reactions';
+      qr.innerHTML=QUICK_REACT.map(em=>`<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`).join('');
       row.appendChild(qr);
     }
     qr.classList.add('show');
   }
   function closeAllQuickReact() {
-    document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.quick-reactions.show').forEach(el=>el.classList.remove('show'));
   }
-  document.addEventListener('click', closeAllQuickReact);
+  document.addEventListener('click',closeAllQuickReact);
 
-  /* ─── CONTEXT MENU ────────────────────────────────────────── */
-  let ctxMsgId = null, ctxIsMine = false;
-
-  function showCtxMenu(e, msgId, isMine) {
+  /* ─── CONTEXT MENU ─── */
+  let ctxMsgId=null, ctxIsMine=false;
+  function showCtxMenu(e,msgId,isMine) {
     e.preventDefault();
-    ctxMsgId = msgId; ctxIsMine = isMine;
-    const menu = document.getElementById('msg-context-menu');
-    document.getElementById('ctx-edit').style.display = isMine ? 'flex' : 'none';
-    document.getElementById('ctx-delete').style.display = isMine ? 'flex' : 'none';
-    menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
-    menu.style.top = Math.min(e.clientY, window.innerHeight - 120) + 'px';
+    ctxMsgId=msgId; ctxIsMine=isMine;
+    const menu=document.getElementById('msg-context-menu');
+    document.getElementById('ctx-edit').style.display=isMine?'flex':'none';
+    document.getElementById('ctx-delete').style.display=isMine?'flex':'none';
+    menu.style.left=Math.min(e.clientX,window.innerWidth-180)+'px';
+    menu.style.top=Math.min(e.clientY,window.innerHeight-120)+'px';
     menu.classList.add('show');
   }
-  document.addEventListener('click', () => {
-    document.getElementById('msg-context-menu').classList.remove('show');
-  });
+  document.addEventListener('click',()=>document.getElementById('msg-context-menu').classList.remove('show'));
 
   function ctxCopy() {
-    const row = document.getElementById('msg-' + ctxMsgId);
-    const txt = row ? row.querySelector('.msg-text') : null;
-    if (txt) navigator.clipboard.writeText(txt.innerText).catch(() => { });
+    const row=document.getElementById('msg-'+ctxMsgId);
+    const txt=row?row.querySelector('.msg-text'):null;
+    if(txt) navigator.clipboard.writeText(txt.innerText).catch(()=>{});
     document.getElementById('msg-context-menu').classList.remove('show');
   }
 
   function ctxEdit() {
     document.getElementById('msg-context-menu').classList.remove('show');
-    const row = document.getElementById('msg-' + ctxMsgId);
-    if (!row) return;
-    const msgText = row.querySelector('.msg-text');
-    if (!msgText) return;
-    const wrap = document.getElementById('edit-wrap-' + ctxMsgId);
-    const ta = document.getElementById('edit-ta-' + ctxMsgId);
-    ta.value = msgText.innerText;
-    wrap.classList.add('show');
-    ta.focus();
-    ta.style.height = 'auto';
-    ta.style.height = ta.scrollHeight + 'px';
+    const row=document.getElementById('msg-'+ctxMsgId); if(!row) return;
+    const msgText=row.querySelector('.msg-text'); if(!msgText) return;
+    const wrap=document.getElementById('edit-wrap-'+ctxMsgId);
+    const ta=document.getElementById('edit-ta-'+ctxMsgId);
+    ta.value=msgText.innerText; wrap.classList.add('show'); ta.focus();
+    ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
   }
 
-  function cancelEdit(msgId) {
-    const wrap = document.getElementById('edit-wrap-' + msgId);
-    if (wrap) wrap.classList.remove('show');
-  }
+  function cancelEdit(msgId) { const w=document.getElementById('edit-wrap-'+msgId); if(w) w.classList.remove('show'); }
 
   async function submitEdit(msgId) {
-    const ta = document.getElementById('edit-ta-' + msgId);
-    const newContent = ta ? ta.value.trim() : '';
-    if (!newContent) return;
-
-    const row = document.getElementById('msg-' + msgId);
-    const msgText = row ? row.querySelector('.msg-text') : null;
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'edit_message', msg_id: msgId, content: newContent }));
+    const ta=document.getElementById('edit-ta-'+msgId);
+    const newContent=ta?ta.value.trim():''; if(!newContent) return;
+    const row=document.getElementById('msg-'+msgId);
+    const msgText=row?row.querySelector('.msg-text'):null;
+    if (ws && ws.readyState===WebSocket.OPEN) {
+      ws.send(JSON.stringify({action:'edit_message',msg_id:msgId,content:newContent}));
     } else {
-      const r = await fetch(`/api/edit-message/${msgId}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify({ content: newContent })
-      });
-      const d = await r.json();
-      if (d.error) { alert(d.error); return; }
+      const r=await fetch(`/api/edit-message/${msgId}/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},body:JSON.stringify({content:newContent})});
+      const d=await r.json(); if(d.error){alert(d.error);return;}
     }
-
-    if (msgText) {
-      msgText.innerHTML = escHtml(newContent);
-      const meta = row.querySelector('.msg-meta .time');
-      if (meta && !meta.querySelector('.msg-edited-label')) {
-        meta.insertAdjacentHTML('beforeend', '<span class="msg-edited-label">edited</span>');
-      }
+    if(msgText){
+      msgText.innerHTML=escHtml(newContent);
+      const meta=row.querySelector('.msg-meta .time');
+      if(meta&&!meta.querySelector('.msg-edited-label')) meta.insertAdjacentHTML('beforeend','<span class="msg-edited-label">edited</span>');
     }
     cancelEdit(msgId);
   }
@@ -1125,36 +644,31 @@
   async function ctxDelete() {
     document.getElementById('msg-context-menu').classList.remove('show');
     if (!confirm('Delete this message?')) return;
-    const msgId = ctxMsgId;
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'delete_message', msg_id: msgId }));
+    const msgId=ctxMsgId;
+    if (ws && ws.readyState===WebSocket.OPEN) {
+      ws.send(JSON.stringify({action:'delete_message',msg_id:msgId}));
     } else {
-      const r = await fetch(`/api/delete-message/${msgId}/`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') }
-      });
-      const d = await r.json();
-      if (d.error) { alert(d.error); return; }
-      applyDelete(msgId);
+      const r=await fetch(`/api/delete-message/${msgId}/`,{method:'POST',headers:{'X-CSRFToken':getCookie('csrftoken')}});
+      const d=await r.json(); if(d.error){alert(d.error);return;} applyDelete(msgId);
     }
   }
 
   function applyDelete(msgId) {
-    const row = document.getElementById('msg-' + msgId);
-    if (!row) return;
-    const bubble = row.querySelector('.bubble');
-    if (bubble) {
-      bubble.innerHTML = '<span style="color:#8696a0;font-style:italic;font-size:13px"><i class="fas fa-ban" style="margin-right:4px"></i>Message deleted</span>';
-    }
-    const editWrap = document.getElementById('edit-wrap-' + msgId);
-    if (editWrap) editWrap.remove();
-    const reactionBtn = row.querySelector('.reaction-trigger');
-    if (reactionBtn) reactionBtn.style.display = 'none';
+    const row=document.getElementById('msg-'+msgId); if(!row) return;
+    const bubble=row.querySelector('.bubble');
+    if(bubble) bubble.innerHTML='<span style="color:var(--text3);font-style:italic;font-size:13px"><i class="fas fa-ban" style="margin-right:4px"></i>Message deleted</span>';
+    const editWrap=document.getElementById('edit-wrap-'+msgId); if(editWrap) editWrap.remove();
+    const reactionBtn=row.querySelector('.reaction-trigger'); if(reactionBtn) reactionBtn.style.display='none';
   }
 
-  /* ─── INIT ────────────────────────────────────────────────── */
+  /* ─── INIT ─── */
   loadMessages();
   connectWS();
+
+  /* show back btn on mobile */
+  if (window.innerWidth <= 768) {
+    const btn = document.querySelector('.back-btn');
+    if (btn) btn.style.display = 'flex';
+  }
 </script>
 {% endblock %}
