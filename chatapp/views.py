@@ -212,45 +212,30 @@ def register_view(request):
 
 @login_required
 def home(request):
-    profile = get_or_create_profile(request.user)
-    profile.is_online = True
-    profile.save()
+    try:
+        profile = get_or_create_profile(request.user)
+        profile.is_online = True
+        profile.save()
 
-    pending_requests = FriendRequest.objects.filter(
-        to_user=request.user, status='pending'
-    ).select_related('from_user', 'from_user__profile')
+        pending_requests = FriendRequest.objects.filter(
+            to_user=request.user, status='pending'
+        )
 
-    notif_count = Notification.objects.filter(
-        user=request.user, is_read=False
-    ).count()
+        notif_count = Notification.objects.filter(
+            user=request.user, is_read=False
+        ).count()
 
-    if request.user.is_superuser:
-        all_users = User.objects.exclude(id=request.user.id).select_related('profile')
-        friend_data = []
-        for u in all_users:
-            fp = get_or_create_profile(u)
-            last_msg = Message.objects.filter(
-                Q(sender=request.user, receiver=u) |
-                Q(sender=u, receiver=request.user)
-            ).order_by('-timestamp').first()
-            unread = Message.objects.filter(
-                sender=u, receiver=request.user, is_seen=False
-            ).count()
-            friend_data.append({
-                'user':     u,
-                'profile':  fp,
-                'last_msg': last_msg,
-                'unread':   unread,
-            })
-    else:
         friend_data = _build_friend_data_objects(request.user)
 
-    return render(request, 'chat/home.html', {
-        'friend_data':      friend_data,
-        'profile':          profile,
-        'pending_requests': pending_requests,
-        'notif_count':      notif_count,
-    })
+        return render(request, 'chat/home.html', {
+            'friend_data': friend_data,
+            'profile': profile,
+            'pending_requests': pending_requests,
+            'notif_count': notif_count,
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)})
 
 
 # ════════════════════════════════════════════════════════════════

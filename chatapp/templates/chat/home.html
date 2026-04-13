@@ -954,8 +954,7 @@
         <div class="dropdown" id="notif-dd">
           <button class="icon-btn" id="notif-btn" onclick="toggleNotif(event)" title="Notifications">
             <i class="fas fa-bell"></i>
-            <span class="notif-badge" id="notif-count" {% if not notif_count %}style="display:none" {% endif
-              %}>{{notif_count }}</span>
+            <span class="notif-badge" id="notif-count" {% if not notif_count %}style="display:none" {% endif %}>{{notif_count }}</span>
           </button>
           <div class="notif-panel" id="notif-panel">
             <div class="notif-header">
@@ -993,7 +992,6 @@
             </a>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -1010,7 +1008,8 @@
     <div class="pending-item">
       <div class="avatar" style="width:38px;height:38px;">
         {% if req.from_user.profile.avatar %}
-        <img src="{{ req.from_user.profile.avatar.url }}" alt="" onerror="this.parentElement.innerHTML='<div class=&quot;avatar-placeholder&quot;>{{ req.from_user.username|first|upper }}</div>'">
+        <img src="{{ req.from_user.profile.avatar.url }}" alt=""
+          onerror="this.parentElement.innerHTML='<div class=&quot;avatar-placeholder&quot;>{{ req.from_user.username|first|upper }}</div>'">
         {% else %}
         <div class="avatar-placeholder">{{ req.from_user.username|first|upper }}</div>
         {% endif %}
@@ -1028,63 +1027,71 @@
       {% if friend_data %}
       {% for fd in friend_data %}
       <div
-        class="friend-item {% if request.resolver_match.kwargs.user_id == fd.user.id|stringformat:'s' %}active{% endif %}"
+        class="friend-item {% if request.resolver_match and request.resolver_match.kwargs.user_id|default:'' == fd.user.id|stringformat:'s' %}active{% endif %}"
         onclick="openChat('{{ fd.user.id }}')" id="friend-{{ fd.user.id }}">
+
         <div class="avatar" style="position:relative;width:49px;height:49px;">
-          {% if fd.profile.avatar %}
-          <img src="{{ fd.profile.avatar.url }}" alt=""
-            style="width:100%;height:100%;border-radius:50%;object-fit:cover"
-            onerror="this.parentElement.innerHTML='<div class=&quot;avatar-placeholder&quot; style=&quot;width:49px;height:49px;&quot;>{{ fd.user.username|first|upper }}</div>'">
+          {% if profile.avatar %}
+          <img src="{{ profile.avatar.url }}">
           {% else %}
-          <div class="avatar-placeholder" style="width:49px;height:49px;">{{ fd.user.username|first|upper }}</div>
+          <div class="avatar-placeholder">{{ request.user.username|first|upper }}</div>
           {% endif %}
+
           <div class="status-dot {% if fd.profile.is_online %}online{% endif %}" id="dot-{{ fd.user.id }}"></div>
         </div>
+
         <div class="info">
           <div class="name-row">
             <span class="name">{{ fd.user.username }}</span>
-            <span class="time">{% if fd.last_msg %}{{ fd.last_msg.timestamp|date:"H:i" }}{% endif %}</span>
+            <span class="time">
+              {% if fd.last_msg %}
+              {{ fd.last_msg.timestamp|date:"H:i" }}
+              {% endif %}
+            </span>
           </div>
+
           <div class="preview">
-            <span>{% if fd.last_msg %}{{ fd.last_msg.content|truncatechars:30 }}{% else %}No messages yet{% endif %}</span>
-            {% if fd.unread %}<span class="unread-badge">{{ fd.unread }}</span>{% endif %}
+            <span>
+              {% if fd.last_msg %}
+              {{ fd.last_msg.content|truncatechars:30 }}
+              {% else %}
+              No messages yet
+              {% endif %}
+            </span>
+
+            {% if fd.unread %}
+            <span class="unread-badge">{{ fd.unread }}</span>
+            {% endif %}
           </div>
         </div>
-        <!-- REMOVE FRIEND BUTTON -->
-        <form method="POST" action="{% url 'remove_friend' fd.user.id %}" style="margin:0" onclick="event.stopPropagation()">
-          {% csrf_token %}
-          <button type="submit" class="icon-btn" title="Remove friend"
-            style="width:32px;height:32px;font-size:14px;color:var(--text2);"
-            onclick="return confirm('Remove {{ fd.user.username }} from friends?')">
-            <i class="fas fa-user-minus"></i>
-          </button>
-        </form>
+
       </div>
+
       {% endfor %}
+
       {% else %}
       <div class="empty-state">
-        <i class="fas fa-users"></i>
-        <p>No friends yet.<br>Add friends to start chatting!</p>
-        <button class="btn btn-primary" style="margin-top:14px" onclick="openAddFriendModal()">Add Friend</button>
+        <p>No friends yet</p>
       </div>
       {% endif %}
     </div>
 
-  </div>
-  <!-- ══════════ END SIDEBAR ══════════ -->
 
-  <!-- ══════════ CHAT PANEL — inside .app ✅ ══════════ -->
-  <div class="chat-panel" id="chat-panel">
-    {% block chat_content %}
-    <div class="welcome-screen">
-      <i class="fa-brands fa-rocketchat"></i>
-      <h2>Chat App</h2>
-      <p>Send and receive messages with your friends. Click a friend on the left to start chatting.</p>
-      <button class="btn btn-primary" onclick="openAddFriendModal()">
-        <i class="fas fa-user-plus"></i> Add Friends
-      </button>
+
+
+    <!-- ══════════ CHAT PANEL — inside .app ✅ ══════════ -->
+    <div class="chat-panel" id="chat-panel">
+      {% block chat_content %}
+      <div class="welcome-screen">
+        <i class="fa-brands fa-rocketchat"></i>
+        <h2>Chat App</h2>
+        <p>Send and receive messages with your friends. Click a friend on the left to start chatting.</p>
+        <button class="btn btn-primary" onclick="openAddFriendModal()">
+          <i class="fas fa-user-plus"></i> Add Friends
+        </button>
+      </div>
+      {% endblock %}
     </div>
-    {% endblock %}
   </div>
   <!-- ══════════ END CHAT PANEL ══════════ -->
 
@@ -1109,7 +1116,7 @@
         </div>
         <hr style="border-color:var(--border)">
         <div>
-          <label style="font-size:13px;color:var(--text2);display:block;margin-bottom:6px">Paste an invite link or
+          <label style="font-size:13px;color:var(--text2);display:block;margin-bottom:6px">Paste an invite link
             code</label>
           <div style="display:flex;gap:8px">
             <input type="text" id="af-invite" placeholder="https://yourdomain.com/invite/..."
@@ -1123,7 +1130,7 @@
           <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Your invite link</div>
           <div style="display:flex;align-items:center;gap:8px">
             <span id="my-invite-link"
-              style="font-size:12px;color:var(--green);word-break:break-all;flex:1">{{profile.get_invite_link }}</span>
+              style="font-size:12px;color:var(--green);word-break:break-all;flex:1">{{profile.get_invite_link}}</span>
             <button class="btn btn-secondary" onclick="copyInvite()"
               style="font-size:12px;padding:6px 10px;white-space:nowrap">
               <i class="fas fa-copy"></i> Copy
@@ -1136,58 +1143,57 @@
       </div>
     </div>
   </div>
+</div>
+<!-- ══════════ BACKGROUND PICKER MODAL ══════════ -->
+<div class="modal-overlay" id="bg-modal">
+  <div class="modal" style="max-width:420px">
+    <h3><i class="fas fa-image" style="color:var(--green);margin-right:8px"></i>Change Background</h3>
 
-  <!-- ══════════ BACKGROUND PICKER MODAL ══════════ -->
-  <div class="modal-overlay" id="bg-modal">
-    <div class="modal" style="max-width:420px">
-      <h3><i class="fas fa-image" style="color:var(--green);margin-right:8px"></i>Change Background</h3>
-
-      <div id="bg-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:36px 20px;
+    <div id="bg-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:36px 20px;
              text-align:center;cursor:pointer;transition:border .2s;margin-bottom:12px"
-        onclick="document.getElementById('bg-file-input').click()"
-        ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
-        ondragleave="this.style.borderColor='var(--border)'" ondrop="handleBgDrop(event)">
-        <i class="fas fa-cloud-upload-alt"
-          style="font-size:40px;color:var(--green);display:block;margin-bottom:12px"></i>
-        <p style="color:var(--text);font-size:15px;font-weight:500;margin-bottom:4px">
-          Click or drag &amp; drop image
-        </p>
-        <p style="color:var(--text2);font-size:12px">JPG, PNG, WEBP supported</p>
-      </div>
+      onclick="document.getElementById('bg-file-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+      ondragleave="this.style.borderColor='var(--border)'" ondrop="handleBgDrop(event)">
+      <i class="fas fa-cloud-upload-alt" style="font-size:40px;color:var(--green);display:block;margin-bottom:12px"></i>
+      <p style="color:var(--text);font-size:15px;font-weight:500;margin-bottom:4px">
+        Click or drag &amp; drop image
+      </p>
+      <p style="color:var(--text2);font-size:12px">JPG, PNG, WEBP supported</p>
+    </div>
 
-      <input type="file" id="bg-file-input" accept="image/*" style="display:none" onchange="handleBgUpload(event)">
+    <input type="file" id="bg-file-input" accept="image/*" style="display:none" onchange="handleBgUpload(event)">
 
-      <div id="bg-preview-wrap" style="display:none;margin-bottom:12px">
-        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Preview:</p>
-        <div style="position:relative;border-radius:10px;overflow:hidden">
-          <img id="bg-preview-img" style="width:100%;height:140px;object-fit:cover;display:block;border-radius:10px">
-          <button onclick="clearBgPreview()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);
+    <div id="bg-preview-wrap" style="display:none;margin-bottom:12px">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Preview:</p>
+      <div style="position:relative;border-radius:10px;overflow:hidden">
+        <img id="bg-preview-img" style="width:100%;height:140px;object-fit:cover;display:block;border-radius:10px">
+        <button onclick="clearBgPreview()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);
                  border:none;border-radius:50%;width:28px;height:28px;color:#fff;
                  cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
-        Current: <span id="current-bg-name" style="color:var(--green)">Default</span>
-      </div>
-
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" id="apply-bg-btn" style="flex:1;opacity:0.5;pointer-events:none"
-          onclick="applyBackground()">
-          <i class="fas fa-check"></i> Apply
+          <i class="fas fa-times"></i>
         </button>
-        <button class="btn btn-secondary" onclick="removeBackground()" style="flex:1">
-          <i class="fas fa-trash"></i> Remove
-        </button>
-      </div>
-
-      <div class="modal-btns" style="margin-top:12px">
-        <button class="btn btn-secondary" onclick="closeModal('bg-modal')">Close</button>
       </div>
     </div>
+
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+      Current: <span id="current-bg-name" style="color:var(--green)">Default</span>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" id="apply-bg-btn" style="flex:1;opacity:0.5;pointer-events:none"
+        onclick="applyBackground()">
+        <i class="fas fa-check"></i> Apply
+      </button>
+      <button class="btn btn-secondary" onclick="removeBackground()" style="flex:1">
+        <i class="fas fa-trash"></i> Remove
+      </button>
+    </div>
+
+    <div class="modal-btns" style="margin-top:12px">
+      <button class="btn btn-secondary" onclick="closeModal('bg-modal')">Close</button>
+    </div>
   </div>
+</div>
 </div>
 
 
@@ -1197,16 +1203,16 @@
 
   /* ── MODALS ── */
   function openChat(userId) {
-  if (window.innerWidth <= 768) {
-    // Mobile: slide panels
-    document.getElementById('sidebar').classList.add('slide-out');
-    document.getElementById('chat-panel').classList.add('slide-in');
-    // Load chat content via navigation
-    window.location.href = `/chat/${userId}/`;
-  } else {
-    window.location.href = `/chat/${userId}/`;
+    if (window.innerWidth <= 768) {
+      // Mobile: slide panels
+      document.getElementById('sidebar').classList.add('slide-out');
+      document.getElementById('chat-panel').classList.add('slide-in');
+      // Load chat content via navigation
+      window.location.href = `/chat/${userId}/`;
+    } else {
+      window.location.href = `/chat/${userId}/`;
+    }
   }
-}
   function openAddFriendModal() {
     document.getElementById('add-friend-modal').classList.add('active');
     document.getElementById('af-username').focus();
