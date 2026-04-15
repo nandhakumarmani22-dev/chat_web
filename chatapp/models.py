@@ -80,8 +80,9 @@ class Message(models.Model):
     file = models.FileField(upload_to='chat_files/', null=True, blank=True)
     file_name = models.CharField(max_length=255, blank=True)
     is_seen = models.BooleanField(default=False)
+    seen_at = models.DateTimeField(null=True, blank=True)
     is_edited = models.BooleanField(default=False)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ['timestamp']

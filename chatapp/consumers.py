@@ -157,11 +157,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message=f'New message from {self.user.username}',
             link=f'/chat/{self.user.id}/'
         )
+        local_ts = timezone.localtime(msg.timestamp)
         return {
             'id': msg.id,
             'avatar': profile.get_avatar_url(),
-            'timestamp': msg.timestamp.strftime('%H:%M'),
-            'date': msg.timestamp.strftime('%Y-%m-%d'),
+            'timestamp': local_ts.strftime('%H:%M'),
+            'date': local_ts.strftime('%Y-%m-%d'),
         }
 
     @database_sync_to_async

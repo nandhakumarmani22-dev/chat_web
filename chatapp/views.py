@@ -8,6 +8,8 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Q, Count
 from django.contrib import messages
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import UserProfile, FriendRequest, Friendship, Message, Notification
 
 
@@ -133,13 +135,25 @@ def login_view(request):
     error = ''
 
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
+        username_input = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
 
-        user = authenticate(request, username=username, password=password)
+        user = None
 
-        if user:
-            if user.is_superuser or user.is_staff:
+        # 🔥 Check if input is email
+        if '@' in username_input:
+            try:
+                user_obj = User.objects.get(email=username_input)
+                user = authenticate(request, username=user_obj.username, password=password)
+            except User.DoesNotExist:
+                user = None
+        else:
+            user = authenticate(request, username=username_input, password=password)
+
+        if user is not None:
+            if not user.is_active:
+                error = "Account disabled"
+            elif user.is_superuser or user.is_staff:
                 error = "Admin must login via admin panel!"
             else:
                 login(request, user)
@@ -150,14 +164,16 @@ def login_view(request):
 
     return render(request, 'login.html', {'error': error})
 
-
 def logout_view(request):
     if request.user.is_authenticated:
         profile = get_or_create_profile(request.user)
         profile.is_online = False
         profile.last_seen = timezone.now()
         profile.save()
+
     logout(request)
+    request.session.flush()  # 🔥 important
+
     return redirect('login')
 
 
@@ -326,8 +342,31 @@ def upload_file(request):
 
     sender_profile = get_or_create_profile(request.user)
     local_ts = timezone.localtime(msg.timestamp)
+    file_url = msg.get_file_url()
 
-    # ✅ FIX 2: get_file_url() now returns Cloudinary CDN URL (https://)
+    # ✅ FIX: Broadcast file/image over WebSocket so the receiver sees it live
+    ids = sorted([request.user.id, receiver.id])
+    room_group_name = f'chat_{ids[0]}_{ids[1]}'
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        room_group_name,
+        {
+            'type': 'chat_message',
+            'id': msg.id,
+            'temp_id': None,
+            'sender_id': request.user.id,
+            'sender': request.user.username,
+            'sender_avatar': get_avatar_url(sender_profile),
+            'content': msg.content,
+            'message_type': msg.message_type,
+            'file_url': file_url,
+            'file_name': msg.file_name,
+            'is_seen': msg.is_seen,
+            'timestamp': local_ts.strftime('%H:%M'),
+            'date': local_ts.strftime('%Y-%m-%d'),
+        }
+    )
+
     return JsonResponse({
         'id':            msg.id,
         'sender_id':     request.user.id,
@@ -335,7 +374,7 @@ def upload_file(request):
         'sender_avatar': get_avatar_url(sender_profile),
         'content':       msg.content,
         'message_type':  msg.message_type,
-        'file_url':      msg.get_file_url(),   # Cloudinary CDN URL
+        'file_url':      file_url,
         'file_name':     msg.file_name,
         'is_seen':       msg.is_seen,
         'timestamp':     local_ts.strftime('%H:%M'),
@@ -645,9 +684,10 @@ def get_messages(request, user_id):
             'file_url':      m.get_file_url(),
             'file_name':     m.file_name,
             'is_seen':       m.is_seen,
+            "seen_at": m.seen_at.isoformat() if msg.seen_at else None,
             'is_edited':     m.is_edited,
-            'timestamp':     local_ts.strftime('%H:%M'),
-            'date':          local_ts.strftime('%Y-%m-%d'),
+            "timestamp": m.timestamp.isoformat(),
+            
         })
     return JsonResponse({'messages': data})
 
@@ -700,14 +740,16 @@ def send_message(request):
 
 
 @login_required
-def mark_seen(request, user_id):
-    other_user = get_object_or_404(User, id=user_id)
-    Message.objects.filter(
-        sender=other_user, receiver=request.user, is_seen=False
-    ).update(is_seen=True)
-    return JsonResponse({'status': 'ok'})
+def mark_seen(request, msg_id):
+    msg = Message.objects.get(id=msg_id)
+    msg.is_seen = True
+    msg.seen_at = timezone.now()
+    msg.save()
 
-
+    return JsonResponse({
+        "is_seen": msg.is_seen,
+        "seen_at": msg.seen_at.isoformat() if msg.seen_at else None
+})
 # ════════════════════════════════════════════════════════════════
 #  ONLINE / NOTIFICATIONS
 # ════════════════════════════════════════════════════════════════
@@ -875,3 +917,37 @@ def admin_chat_view(request, user1_id, user2_id):
         'user2':    user2,
         'messages': msgs,
     })
+
+    
+
+def send_file(request):
+    if request.method == "POST":
+        file = request.FILES.get('file')
+
+        Message.objects.create(
+            file=file,
+            sender=request.user
+        )
+
+        return JsonResponse({"status": "file sent"})
+
+
+def send_image(request):
+    if request.method == "POST":
+        image = request.FILES.get('image')
+
+        Message.objects.create(
+            image=image,
+            sender=request.user
+        )
+
+        return JsonResponse({"status": "image sent"})
+
+
+def messages_api(request, user_id):
+    try:
+        # your existing logic
+        messages = Message.objects.filter(...)
+        return JsonResponse({'messages': list(messages)})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)        

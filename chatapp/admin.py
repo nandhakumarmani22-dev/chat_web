@@ -3,6 +3,12 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from .models import UserProfile, FriendRequest, Friendship, Message, Notification
 
+class UserAdmin(admin.ModelAdmin):
+    list_display = ('id', 'username', 'email', 'is_active', 'last_login')
+
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
+
 # --- 1. Inline Profile Editing ---
 # This allows the Admin to see the UserProfile details directly when editing a User
 class UserProfileInline(admin.StackedInline):
