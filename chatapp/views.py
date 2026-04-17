@@ -354,7 +354,7 @@ def upload_file(request):
             'type': 'chat_message',
             'id': msg.id,
             'temp_id': None,
-            'sender_id': request.user.id,
+            'sender_id': message.sender.id,
             'sender': request.user.username,
             'sender_avatar': get_avatar_url(sender_profile),
             'content': msg.content,
@@ -368,18 +368,17 @@ def upload_file(request):
     )
 
     return JsonResponse({
-        'id':            msg.id,
-        'sender_id':     request.user.id,
-        'sender':        request.user.username,
-        'sender_avatar': get_avatar_url(sender_profile),
-        'content':       msg.content,
-        'message_type':  msg.message_type,
-        'file_url':      file_url,
-        'file_name':     msg.file_name,
-        'is_seen':       msg.is_seen,
-        'timestamp':     local_ts.strftime('%H:%M'),
-        'date':          local_ts.strftime('%Y-%m-%d'),
-    })
+    'id': msg.id,
+    'sender_id': msg.sender.id,   # ✅ IMPORTANT (not request.user.id blindly)
+    'sender': msg.sender.username,
+    'sender_avatar': get_avatar_url(sender_profile),
+    'content': msg.content,
+    'message_type': msg.message_type,
+    'file_url': '',
+    'file_name': '',
+    'is_seen': msg.is_seen,
+    'timestamp': msg.timestamp.isoformat(),  # ✅ FIX (important)
+})
 
 
 # ════════════════════════════════════════════════════════════════
@@ -691,13 +690,19 @@ def get_messages(request, user_id):
         })
     return JsonResponse({'messages': data})
 
-
 @login_required
 @require_POST
 def send_message(request):
     try:
         receiver_id = request.POST.get('receiver_id')
         content = request.POST.get('content', '').strip()
+
+        if not receiver_id:
+            return JsonResponse({'error': 'Receiver required'}, status=400)
+
+        if not content:
+            return JsonResponse({'error': 'Message cannot be empty'}, status=400)
+
         receiver = get_object_or_404(User, id=receiver_id)
 
         if not request.user.is_superuser:
@@ -710,7 +715,6 @@ def send_message(request):
             content=content,
             message_type='text',
         )
-        msg.refresh_from_db()
 
         Notification.objects.create(
             user=receiver,
@@ -721,22 +725,49 @@ def send_message(request):
 
         sender_profile = get_or_create_profile(request.user)
         local_ts = timezone.localtime(msg.timestamp)
+
+        # 🔥 WebSocket broadcast
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        ids = sorted([request.user.id, receiver.id])
+        room_group_name = f'chat_{ids[0]}_{ids[1]}'
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            room_group_name,
+            {
+                'type': 'chat_message',
+                'id': msg.id,
+                'sender_id': msg.sender.id,
+                'sender': request.user.username,
+                'sender_avatar': get_avatar_url(sender_profile),
+                'content': msg.content,
+                'message_type': msg.message_type,
+                'file_url': '',
+                'file_name': '',
+                'is_seen': msg.is_seen,
+                'timestamp': local_ts.strftime('%H:%M'),
+                'date': local_ts.strftime('%Y-%m-%d'),
+            }
+        )
+
         return JsonResponse({
-            'id':            msg.id,
-            'sender_id':     request.user.id,
-            'sender':        request.user.username,
-            # ✅ FIX 1 applied
+            'id': msg.id,
+            'sender_id': msg.sender.id,
+            'sender': request.user.username,
             'sender_avatar': get_avatar_url(sender_profile),
-            'content':       msg.content,
-            'message_type':  msg.message_type,
-            'file_url':      '',
-            'file_name':     '',
-            'is_seen':       msg.is_seen,
-            'timestamp':     local_ts.strftime('%H:%M'),
-            'date':          local_ts.strftime('%Y-%m-%d'),
+            'content': msg.content,
+            'message_type': msg.message_type,
+            'file_url': '',
+            'file_name': '',
+            'is_seen': msg.is_seen,
+            'timestamp': local_ts.strftime('%H:%M'),
+            'date': local_ts.strftime('%Y-%m-%d'),
         })
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+
+    except Exception:
+        return JsonResponse({'error': 'Something went wrong'}, status=500)
 
 
 @login_required
@@ -946,8 +977,13 @@ def send_image(request):
 
 def messages_api(request, user_id):
     try:
-        # your existing logic
-        messages = Message.objects.filter(...)
-        return JsonResponse({'messages': list(messages)})
+        other_user = get_object_or_404(User, id=user_id)
+
+        msgs = Message.objects.filter(
+            Q(sender=request.user, receiver=other_user) |
+            Q(sender=other_user, receiver=request.user)
+        ).values()
+
+        return JsonResponse({'messages': list(msgs)})
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)        
+        return JsonResponse({'error': str(e)}, status=500)       

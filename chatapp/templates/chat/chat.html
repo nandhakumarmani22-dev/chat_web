@@ -40,7 +40,6 @@
     padding: 0;
   }
 
-  /* ── LAYOUT ── */
   .chat-wrap {
     display: flex;
     flex-direction: column;
@@ -52,7 +51,6 @@
     position: relative;
   }
 
-  /* Subtle grid background */
   .chat-wrap::before {
     content: '';
     position: fixed;
@@ -65,7 +63,7 @@
     z-index: 0;
   }
 
-  /* ── HEADER ── */
+  /* HEADER */
   .chat-header {
     position: relative;
     z-index: 10;
@@ -185,7 +183,7 @@
     }
   }
 
-  /* ── MESSAGES AREA ── */
+  /* MESSAGES */
   .messages-area {
     flex: 1;
     overflow-y: auto;
@@ -217,7 +215,6 @@
     gap: 2px;
   }
 
-  /* ── DATE DIVIDER ── */
   .date-divider {
     display: flex;
     align-items: center;
@@ -238,7 +235,7 @@
     background: var(--border);
   }
 
-  /* ── MSG ROW ── */
+  /* MSG ROW — THE CRITICAL PART */
   .msg-row {
     display: flex;
     align-items: flex-end;
@@ -259,12 +256,16 @@
     }
   }
 
+  /* SENT = right side */
   .msg-row.sent {
     flex-direction: row-reverse;
+    justify-content: flex-start;
   }
 
+  /* RECV = left side */
   .msg-row.recv {
     flex-direction: row;
+    justify-content: flex-start;
   }
 
   .msg-row+.msg-row {
@@ -276,7 +277,7 @@
     margin-top: 10px;
   }
 
-  /* ── BUBBLE ── */
+  /* BUBBLE */
   .bubble {
     max-width: 420px;
     padding: 10px 13px;
@@ -356,7 +357,22 @@
     color: var(--text3);
   }
 
-  /* ── REACTION TRIGGER ── */
+  /* INNER COLUMN — aligns content left or right based on parent */
+  .msg-inner {
+    max-width: 72%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sent .msg-inner {
+    align-items: flex-end;
+  }
+
+  .recv .msg-inner {
+    align-items: flex-start;
+  }
+
+  /* REACTION TRIGGER */
   .reaction-trigger {
     opacity: 0;
     font-size: 14px;
@@ -378,7 +394,7 @@
     background: var(--accent-dim);
   }
 
-  /* ── QUICK REACTIONS ── */
+  /* QUICK REACTIONS */
   .quick-reactions {
     position: absolute;
     bottom: calc(100% + 6px);
@@ -429,7 +445,7 @@
     transform: scale(1.35);
   }
 
-  /* ── REACTION CHIPS ── */
+  /* REACTION CHIPS */
   .msg-reactions {
     display: flex;
     flex-wrap: wrap;
@@ -461,7 +477,7 @@
     font-family: var(--font-mono);
   }
 
-  /* ── MEDIA MESSAGES ── */
+  /* MEDIA */
   .img-msg {
     max-width: 260px;
     max-height: 220px;
@@ -502,7 +518,7 @@
     margin-top: 1px;
   }
 
-  /* ── EDIT INPUT ── */
+  /* EDIT INPUT */
   .edit-input-wrap {
     display: none;
     gap: 6px;
@@ -566,7 +582,7 @@
     color: var(--danger);
   }
 
-  /* ── TYPING INDICATOR ── */
+  /* TYPING */
   .typing-indicator {
     min-height: 22px;
     padding: 2px 20px;
@@ -577,7 +593,7 @@
     z-index: 1;
   }
 
-  /* ── CHAT INPUT ── */
+  /* INPUT BAR */
   .chat-input {
     position: relative;
     z-index: 10;
@@ -670,7 +686,7 @@
     transform: scale(.96);
   }
 
-  /* ── EMOJI PICKER ── */
+  /* EMOJI PICKER */
   #emoji-picker {
     position: absolute;
     bottom: calc(100% + 8px);
@@ -790,7 +806,7 @@
     padding: 12px 4px;
   }
 
-  /* ── CONTEXT MENU ── */
+  /* CONTEXT MENU */
   #msg-context-menu {
     position: fixed;
     z-index: 999;
@@ -838,7 +854,6 @@
     font-size: 12px;
   }
 
-  /* ── DELETED MESSAGE ── */
   .msg-deleted {
     color: var(--text3);
     font-style: italic;
@@ -848,7 +863,6 @@
     gap: 6px;
   }
 
-  /* ── MOBILE ── */
   @media (max-width: 600px) {
     .bubble {
       max-width: 280px;
@@ -917,7 +931,6 @@
 
   <!-- INPUT BAR -->
   <div class="chat-input">
-    <!-- Emoji picker -->
     <div id="emoji-picker">
       <div id="ep-search-wrap">
         <input id="ep-search" type="text" placeholder="Search emoji…" autocomplete="off">
@@ -941,7 +954,6 @@
       <textarea id="msg-input" placeholder="Type a message…" rows="1" onkeydown="handleKey(event)"
         oninput="onTyping()"></textarea>
     </div>
-
     <button type="button" class="send-btn" onclick="sendMsg()">
       <i class="fas fa-paper-plane"></i>
     </button>
@@ -959,51 +971,33 @@
 
 {% block extra_js %}
 <script>
+  // ─── IDs ───────────────────────────────────────────────────────────────────
   const OTHER_ID = parseInt("{{ other_user.id }}".trim(), 10);
   const MY_ID = parseInt("{{ request.user.id }}".trim(), 10);
+
   let ws, typingTimer;
   let wsConnected = false;
+  let messagesLoaded = false;
 
-  /* ══════════════════════════════════════
-     HELPERS
-  ══════════════════════════════════════ */
+  // ─── HELPERS ───────────────────────────────────────────────────────────────
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+  }
+
   function getCurrentDate() {
     const n = new Date();
     return n.getFullYear() + '-' +
       String(n.getMonth() + 1).padStart(2, '0') + '-' +
       String(n.getDate()).padStart(2, '0');
   }
-  function getCookie(name) {
-    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-    return v ? v[2] : null;
-  }
-  function escHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
-  }
-  function formatDate(d) {
-    const today = getCurrentDate();
-    const yest = (() => {
-      const y = new Date(); y.setDate(y.getDate() - 1);
-      return y.getFullYear() + '-' + String(y.getMonth() + 1).padStart(2, '0') + '-' + String(y.getDate()).padStart(2, '0');
-    })();
-    if (d === today) return 'Today';
-    if (d === yest) return 'Yesterday';
-    const [yr, mo, dy] = d.split('-');
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${parseInt(dy)} ${months[parseInt(mo) - 1]} ${yr}`;
-  }
-  function scrollToBottom(smooth = true) {
-    const a = document.getElementById('messages-area');
-    if (smooth) a.scrollTo({ top: a.scrollHeight, behavior: 'smooth' });
-    else a.scrollTop = a.scrollHeight;
-  }
-  function setWsStatus(ok) {
-    wsConnected = ok;
-    const d = document.getElementById('ws-status');
-    if (d) d.className = ok ? 'connected' : '';
-  }
+
   function formatTime(ts) {
     if (!ts) return '';
     if (/^\d{2}:\d{2}$/.test(ts)) {
@@ -1013,22 +1007,23 @@
     const d = new Date(ts); if (isNaN(d)) return '';
     return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   }
-  function dateKey(ts) {
-    if (!ts) return '';
-    if (/^\d{2}:\d{2}$/.test(ts)) return getCurrentDate();
-    const d = new Date(ts); if (isNaN(d)) return '';
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
-  function getLastDate() { return document.getElementById('messages-container').dataset.lastDate || ''; }
-  function setLastDate(d) { document.getElementById('messages-container').dataset.lastDate = d; }
 
-  /* ══════════════════════════════════════
-     RENDER
-  ══════════════════════════════════════ */
+  function scrollToBottom(smooth = true) {
+    const a = document.getElementById('messages-area');
+    if (smooth) a.scrollTo({ top: a.scrollHeight, behavior: 'smooth' });
+    else a.scrollTop = a.scrollHeight;
+  }
+
+  function setWsStatus(ok) {
+    wsConnected = ok;
+    const d = document.getElementById('ws-status');
+    if (d) d.className = ok ? 'connected' : '';
+  }
+
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   function renderMessages(msgs) {
     const c = document.getElementById('messages-container');
     c.innerHTML = '';
-    c.dataset.lastDate = '';
     [...msgs]
       .sort((a, b) => {
         const ta = new Date(a.timestamp), tb = new Date(b.timestamp);
@@ -1038,79 +1033,53 @@
     scrollToBottom(false);
   }
 
+  // ── THE KEY FIX: resolve sender id from any field name ──
+  function getSenderId(m) {
+    // Try every common field name your Django API might use
+    const raw = m.sender_id ?? m.sender ?? m.user_id ?? m.from_user_id ?? null;
+    return raw !== null ? Number(raw) : null;
+  }
+
   function appendMessage(m, scroll = true) {
     const c = document.getElementById('messages-container');
 
-    const div = document.createElement('div');
-    div.className = 'message';
+    const senderId = getSenderId(m);
+    const isSent = senderId !== null && senderId === MY_ID;
 
-    let contentHTML = "";
-
-    // ✅ TEXT MESSAGE
-    if (m.message_type === "text") {
-      contentHTML = `<p>${m.content}</p>`;
-    }
-
-    // ✅ IMAGE MESSAGE
-    else if (m.message_type === "image" && m.file_url) {
-      contentHTML = `
-      <img src="${m.file_url}" 
-           style="max-width:200px;border-radius:10px;cursor:pointer;" 
-           onclick="window.open('${m.file_url}', '_blank')">
-    `;
-    }
-
-    // ✅ FILE MESSAGE
-    else if (m.message_type === "file" && m.file_url) {
-      contentHTML = `
-      <a href="${m.file_url}" target="_blank">
-        📄 ${m.file_name || "Download File"}
-      </a>
-    `;
-    }
-
-    div.innerHTML = `
-    <div class="msg-content">
-      ${contentHTML}
-      <span class="msg-time">${m.timestamp || ""}</span>
-    </div>
-  `;
-
-    c.appendChild(div);
-
-    if (scroll) {
-      c.scrollTop = c.scrollHeight;
-    }
-  }
-
-  const isSent = parseInt(m.sender_id, 10) === MY_ID;
-  const row = document.createElement('div');
-  row.className = 'msg-row ' + (isSent ? 'sent' : 'recv');
-  row.id = 'msg-' + m.id;
-
-  let inner = '';
-  if (m.message_type === 'image' && m.file_url) {
-    inner = `<img src="${m.file_url}" class="img-msg"
+    // ── build bubble content ──
+    let inner = '';
+    if (m.message_type === 'image' && m.file_url) {
+      inner = `<img src="${m.file_url}" class="img-msg"
         onclick="window.open('${m.file_url}','_blank')" alt="image">`;
-  } else if (m.message_type === 'file' && m.file_url) {
-    inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
+    } else if (m.message_type === 'file' && m.file_url) {
+      inner = `<a href="${m.file_url}" target="_blank" class="file-msg">
         <i class="fas fa-file-alt"></i>
         <div class="file-info">
           <div class="fname">${escHtml(m.file_name || 'File')}</div>
           <div class="fsize">Download</div>
-        </div></a>`;
-  } else {
-    inner = `<span class="msg-text">${escHtml(m.content)}</span>`;
-  }
+        </div>
+      </a>`;
+    } else {
+      inner = `<span class="msg-text">${escHtml(m.content || '')}</span>`;
+    }
 
-  const seenIcon = isSent
-    ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}" title="${m.is_seen ? 'Seen' : 'Delivered'}">${m.is_seen ? '✓✓' : '✓'}</span>`
-    : '';
-  const edited = m.is_edited ? '<span class="msg-edited-label">edited</span>' : '';
+    const seenIcon = isSent
+      ? `<span class="seen-icon ${m.is_seen ? 'seen' : 'unseen'}">${m.is_seen ? '✓✓' : '✓'}</span>`
+      : '';
 
-  row.innerHTML = `
+    const edited = m.is_edited
+      ? '<span class="msg-edited-label">edited</span>'
+      : '';
+
+    // ── assemble row ──
+    const row = document.createElement('div');
+    row.className = `msg-row ${isSent ? 'sent' : 'recv'}`;
+    row.id = 'msg-' + m.id;
+
+    row.innerHTML = `
       <button class="reaction-trigger" onclick="showQuickReact('${m.id}',event)">😊</button>
-      <div style="max-width:72%;display:flex;flex-direction:column;align-items:${isSent ? 'flex-end' : 'flex-start'}">
+
+      <div class="msg-inner">
         <div class="bubble" oncontextmenu="showCtxMenu(event,'${m.id}',${isSent})">
           ${inner}
           <div class="msg-meta">
@@ -1118,37 +1087,30 @@
             ${seenIcon}
           </div>
         </div>
+
         <div class="edit-input-wrap" id="edit-wrap-${m.id}">
           <textarea id="edit-ta-${m.id}" rows="1"></textarea>
           <button onclick="submitEdit('${m.id}')"><i class="fas fa-check"></i></button>
           <button class="cancel-edit" onclick="cancelEdit('${m.id}')"><i class="fas fa-times"></i></button>
         </div>
+
         <div class="msg-reactions"></div>
-      </div>`;
+      </div>
+    `;
 
-  c.appendChild(row);
-  if (scroll) scrollToBottom();
+    c.appendChild(row);
+    if (scroll) scrollToBottom();
+  }
 
-
-  /* ══════════════════════════════════════
-     LOAD HISTORY  ← FIXED: only loads once, never clears on reconnect
-  ══════════════════════════════════════ */
-  let messagesLoaded = false;
-
+  // ─── LOAD HISTORY ──────────────────────────────────────────────────────────
   async function loadMessages() {
-    if (messagesLoaded) return;          // ← guard: never reload
+    if (messagesLoaded) return;
     try {
       const r = await fetch(`/api/messages/${OTHER_ID}/`);
-      if (!r.ok) {
-        const text = await r.text();
-        console.error('Server error:', r.status, text);
-        return;
-      }
+      if (!r.ok) { console.error('History load failed:', r.status); return; }
       const d = await r.json();
       renderMessages(d.messages);
-      messagesLoaded = true;             // ← mark done
-
-      // Mark existing messages as seen
+      messagesLoaded = true;
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ action: 'mark_seen' }));
       }
@@ -1157,12 +1119,11 @@
     }
   }
 
-  /* ══════════════════════════════════════
-     SEND
-  ══════════════════════════════════════ */
+  // ─── SEND ──────────────────────────────────────────────────────────────────
   function sendMsg() {
     const inp = document.getElementById('msg-input');
-    const txt = inp.value.trim(); if (!txt) return;
+    const txt = inp.value.trim();
+    if (!txt) return;
     document.getElementById('emoji-picker').classList.remove('open');
 
     const tempId = 'temp_' + Date.now();
@@ -1178,12 +1139,16 @@
     } else {
       fetch('/api/send-message/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
         body: `receiver_id=${OTHER_ID}&content=${encodeURIComponent(txt)}`
       })
         .then(r => r.json())
         .then(d => {
-          const t = document.getElementById('msg-' + tempId); if (t) t.remove();
+          const t = document.getElementById('msg-' + tempId);
+          if (t) t.remove();
           if (!d.error) appendMessage(d, false);
         })
         .catch(e => console.error(e));
@@ -1198,6 +1163,7 @@
     const d = await r.json(); if (!d.error) appendMessage(d);
     document.getElementById('file-input').value = '';
   }
+
   async function sendImage() {
     const f = document.getElementById('image-input').files[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f); fd.append('receiver_id', OTHER_ID);
@@ -1206,12 +1172,11 @@
     document.getElementById('image-input').value = '';
   }
 
-  /* ══════════════════════════════════════
-     INPUT
-  ══════════════════════════════════════ */
+  // ─── INPUT ─────────────────────────────────────────────────────────────────
   function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
   }
+
   function onTyping() {
     const ta = document.getElementById('msg-input');
     ta.style.height = 'auto';
@@ -1224,32 +1189,24 @@
     }
   }
 
-  /* ══════════════════════════════════════
-     WEBSOCKET  ← FIXED: loadMessages on first open only
-  ══════════════════════════════════════ */
+  // ─── WEBSOCKET ─────────────────────────────────────────────────────────────
   function connectWS() {
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${window.location.host}/ws/chat/${OTHER_ID}/`);
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/chat/${OTHER_ID}/`);
 
-    ws.onopen = () => {
-      setWsStatus(true);
-      loadMessages();                    // ← safe: guarded by messagesLoaded flag
-    };
+    ws.onopen = () => { setWsStatus(true); loadMessages(); };
 
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
 
       if (data.type === 'message') {
-        // Remove optimistic temp bubble
         if (data.temp_id) {
           const t = document.getElementById('msg-' + data.temp_id);
           if (t) t.remove();
         }
-        // Only append if not already in DOM (prevents duplicate on reconnect)
         if (!document.getElementById('msg-' + data.id)) {
           appendMessage(data);
-          // Auto mark seen if the message is from the other user
-          if (parseInt(data.sender_id, 10) !== MY_ID) {
+          if (getSenderId(data) !== MY_ID) {
             ws.send(JSON.stringify({ action: 'mark_seen' }));
           }
         }
@@ -1262,7 +1219,6 @@
         document.querySelectorAll('.seen-icon.unseen').forEach(el => {
           el.className = 'seen-icon seen';
           el.textContent = '✓✓';
-          el.title = 'Seen';
         });
       }
       else if (data.type === 'online_status') {
@@ -1288,16 +1244,11 @@
       }
     };
 
-    ws.onclose = () => {
-      setWsStatus(false);
-      setTimeout(connectWS, 3000);      // ← reconnect; messagesLoaded guard prevents re-render
-    };
+    ws.onclose = () => { setWsStatus(false); setTimeout(connectWS, 3000); };
     ws.onerror = () => setWsStatus(false);
   }
 
-  /* ══════════════════════════════════════
-     EMOJI PICKER
-  ══════════════════════════════════════ */
+  // ─── EMOJI PICKER ──────────────────────────────────────────────────────────
   const EMOJI_CATEGORIES = [
     { id: 'recent', icon: '🕐', label: 'Recently used', emojis: [] },
     { id: 'smileys', icon: '😀', label: 'Smileys & people', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👋', '🤚', '🖐', '✋', '🖖', '👌', '✌️', '🤞', '👍', '👎', '✊', '👏', '🙌', '🙏'] },
@@ -1314,6 +1265,7 @@
     try { localStorage.setItem('ep_recent', JSON.stringify(r)); } catch { }
     EMOJI_CATEGORIES[0].emojis = r;
   }
+
   let activeCat = 'smileys';
 
   function buildEmojiPicker() {
@@ -1341,7 +1293,9 @@
       else { const em = document.createElement('div'); em.className = 'ep-empty'; em.textContent = 'No emoji found'; grid.appendChild(em); }
       body.appendChild(grid); return;
     }
-    const cats = activeCat === 'recent' ? [EMOJI_CATEGORIES[0]] : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
+    const cats = activeCat === 'recent'
+      ? [EMOJI_CATEGORIES[0]]
+      : EMOJI_CATEGORIES.filter(c => c.id === activeCat);
     cats.forEach(cat => {
       if (!cat.emojis.length) return;
       const label = document.createElement('div'); label.className = 'ep-section-label'; label.textContent = cat.label; body.appendChild(label);
@@ -1374,11 +1328,11 @@
     inp.focus(); addRecent(emoji); onTyping();
   }
 
-  /* ══════════════════════════════════════
-     REACTIONS
-  ══════════════════════════════════════ */
+  // ─── REACTIONS ─────────────────────────────────────────────────────────────
   const msgReactions = {}, myReactions = {};
+
   function getReactionsEl(msgId) { return document.querySelector(`#msg-${msgId} .msg-reactions`); }
+
   function renderReactions(msgId) {
     const el = getReactionsEl(msgId); if (!el) return;
     const rx = msgReactions[msgId] || {}, mine = myReactions[msgId] || new Set();
@@ -1388,35 +1342,47 @@
       const chip = document.createElement('span');
       chip.className = 'reaction-chip' + (mine.has(emoji) ? ' mine' : '');
       chip.innerHTML = `${emoji}<span class="rc-count">${count > 1 ? count : ''}</span>`;
-      chip.onclick = () => toggleReaction(msgId, emoji); el.appendChild(chip);
+      chip.onclick = () => toggleReaction(msgId, emoji);
+      el.appendChild(chip);
     });
   }
+
   function toggleReaction(msgId, emoji) {
     if (!msgReactions[msgId]) msgReactions[msgId] = {};
     if (!myReactions[msgId]) myReactions[msgId] = new Set();
     const mine = myReactions[msgId];
-    if (mine.has(emoji)) { mine.delete(emoji); msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1); }
-    else { mine.add(emoji); msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1; }
+    if (mine.has(emoji)) {
+      mine.delete(emoji);
+      msgReactions[msgId][emoji] = Math.max(0, (msgReactions[msgId][emoji] || 1) - 1);
+    } else {
+      mine.add(emoji);
+      msgReactions[msgId][emoji] = (msgReactions[msgId][emoji] || 0) + 1;
+    }
     addRecent(emoji); renderReactions(msgId); closeAllQuickReact();
   }
+
   function showQuickReact(msgId, e) {
     e.stopPropagation(); closeAllQuickReact();
     const row = document.getElementById('msg-' + msgId); if (!row) return;
     let qr = row.querySelector('.quick-reactions');
     if (!qr) {
       qr = document.createElement('div'); qr.className = 'quick-reactions';
-      qr.innerHTML = QUICK_REACT.map(em => `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`).join('');
+      qr.innerHTML = QUICK_REACT.map(em =>
+        `<span class="qr-emoji" title="${em}" onclick="toggleReaction('${msgId}','${em}')">${em}</span>`
+      ).join('');
       row.appendChild(qr);
     }
     qr.classList.add('show');
   }
-  function closeAllQuickReact() { document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show')); }
+
+  function closeAllQuickReact() {
+    document.querySelectorAll('.quick-reactions.show').forEach(el => el.classList.remove('show'));
+  }
   document.addEventListener('click', closeAllQuickReact);
 
-  /* ══════════════════════════════════════
-     CONTEXT MENU
-  ══════════════════════════════════════ */
+  // ─── CONTEXT MENU ──────────────────────────────────────────────────────────
   let ctxMsgId = null, ctxIsMine = false;
+
   function showCtxMenu(e, msgId, isMine) {
     e.preventDefault(); ctxMsgId = msgId; ctxIsMine = isMine;
     const menu = document.getElementById('msg-context-menu');
@@ -1426,7 +1392,8 @@
     menu.style.top = Math.min(e.clientY, window.innerHeight - 120) + 'px';
     menu.classList.add('show');
   }
-  document.addEventListener('click', () => document.getElementById('msg-context-menu').classList.remove('show'));
+  document.addEventListener('click', () =>
+    document.getElementById('msg-context-menu').classList.remove('show'));
 
   function ctxCopy() {
     const row = document.getElementById('msg-' + ctxMsgId);
@@ -1434,6 +1401,7 @@
     if (txt) navigator.clipboard.writeText(txt.innerText).catch(() => { });
     document.getElementById('msg-context-menu').classList.remove('show');
   }
+
   function ctxEdit() {
     document.getElementById('msg-context-menu').classList.remove('show');
     const row = document.getElementById('msg-' + ctxMsgId); if (!row) return;
@@ -1443,12 +1411,14 @@
     ta.value = msgText.innerText; wrap.classList.add('show'); ta.focus();
     ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
   }
-  function cancelEdit(msgId) { const w = document.getElementById('edit-wrap-' + msgId); if (w) w.classList.remove('show'); }
+
+  function cancelEdit(msgId) {
+    const w = document.getElementById('edit-wrap-' + msgId); if (w) w.classList.remove('show');
+  }
 
   async function submitEdit(msgId) {
     const ta = document.getElementById('edit-ta-' + msgId);
     const newContent = ta?.value.trim(); if (!newContent) return;
-    const row = document.getElementById('msg-' + msgId);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'edit_message', msg_id: msgId, content: newContent }));
     } else {
@@ -1458,7 +1428,7 @@
         body: JSON.stringify({ content: newContent })
       });
       const d = await r.json(); if (d.error) { alert(d.error); return; }
-      // Apply locally if WS not available
+      const row = document.getElementById('msg-' + msgId);
       const txt = row?.querySelector('.msg-text');
       if (txt) {
         txt.innerHTML = escHtml(newContent);
@@ -1488,16 +1458,14 @@
   function applyDelete(msgId) {
     const row = document.getElementById('msg-' + msgId); if (!row) return;
     const bubble = row.querySelector('.bubble');
-    if (bubble) bubble.innerHTML = '<span class="msg-deleted"><i class="fas fa-ban"></i>Message deleted</span>';
+    if (bubble) bubble.innerHTML = '<span class="msg-deleted"><i class="fas fa-ban"></i> Message deleted</span>';
     document.getElementById('edit-wrap-' + msgId)?.remove();
     row.querySelector('.reaction-trigger')?.remove();
   }
 
   function goBack() { window.history.back(); }
 
-  /* ══════════════════════════════════════
-     INIT  ← loadMessages is called inside ws.onopen
-  ══════════════════════════════════════ */
+  // ─── INIT ──────────────────────────────────────────────────────────────────
   connectWS();
 </script>
 {% endblock %}
