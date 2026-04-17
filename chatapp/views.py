@@ -684,7 +684,7 @@ def get_messages(request, user_id):
             'file_url':      m.get_file_url(),
             'file_name':     m.file_name,
             'is_seen':       m.is_seen,
-            "seen_at": m.seen_at.isoformat() if msg.seen_at else None,
+            "seen_at": m.seen_at.isoformat() if m.seen_at else None,
             'is_edited':     m.is_edited,
             "timestamp": m.timestamp.isoformat(),
             
